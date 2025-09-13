@@ -34,7 +34,17 @@ Date: 09/13/2025 (mm/dd/yyyy)
 
 Time range: 10:00 AM - 11:00 AM
 
-Description: I spent this next hour wokring on building out the fundemental blocks of the game. After cleaning up the codebase and commenting for clarity, I then began by making a list of constants to control the finer details of te game and refine them afterwards without changing a large chunk of game logic. To do this, I started by generating a nice [color palette](https://coolors.co/522b29-37ff8b-51d6ff-8d9ec6-a06b9a) and converting it into 2-bit RGB values for my game. I then determined positions, speeds and acceleration values and made them constants as well. I then worked on making a simple audio control system to play beeps as necessary. I then worked to make the display logic in the game loop to actually display the sky, grass and dirt along with a temporary red box representing the main character. An image of the work completed at this point can be found below.
+Description: I spent this next hour working on building out the fundemental blocks of the game. After cleaning up the codebase and commenting for clarity, I then began by making a list of constants to control the finer details of te game and refine them afterwards without changing a large chunk of game logic. To do this, I started by generating a nice [color palette](https://coolors.co/522b29-37ff8b-51d6ff-8d9ec6-a06b9a) and converting it into 2-bit RGB values for my game. I then determined positions, speeds and acceleration values and made them constants as well. I then worked on making a simple audio control system to play beeps as necessary. I then worked to make the display logic in the game loop to actually display the sky, grass and dirt along with a temporary red box representing the main character. An image of the work completed at this point can be found below.
 
 ![Image of Game](./images/Hour4/1.png)
 
+
+Hour 5-6
+
+Date: 09/13/2025 (mm/dd/yyyy)
+
+Time range: 11:15 AM - 1:15 PM
+
+Description: I spent these last two hours working on building out the sprite of the main character manually (individual pixel blocks written by hand in code using trial-and-error). Once I had done this, I worked on doing the same thing in keyframes to create a walk animation for the character. Once I had completed that, I worked on creating the actual keyframe timings until they felt right and had a walking character in my game. Then, I worked on creating a jump mechanic in the game which had multiple errors and issues that needed to be worked out regarding signed/unsigned numbers and gravitational acceleration vs jump velocity but whoch have since been worked out and resolved. My next steps would be to make an actual sprite for the jumping character in code rather than a solid rectangular block as is used now. A screenshot of the current state of the game can be found below.
+
+![Image of Game Currently](./images/Hour5-6/1.png)

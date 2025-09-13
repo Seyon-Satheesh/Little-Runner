@@ -82,14 +82,17 @@ module tt_um_vga_example(
   localparam [5:0] GROUND_COLOR = {2'b01, 2'b11, 2'b10};
   localparam [5:0] DIRT_COLOR = {2'b10, 2'b01, 2'b01};
 
+  localparam [5:0] PLAYER_BRIGHT_COLOR = {2'b10, 2'b01, 2'b10};
+  localparam [5:0] PLAYER_DARK_COLOR = {2'b01, 2'b10, 2'b10};
+
   localparam [31:0] HIGH_BEEP_FREQUENCY = 32'd50000;
   localparam [31:0] LOW_BEEP_FREQUENCY = 32'd500000;
 
   localparam [9:0] GROUND_Y = 10'd400;
   localparam [9:0] DIRT_Y = 10'd410;
 
-  localparam [9:0] GRAVITY_ACCELERATION = 10'd2;
-  localparam [9:0] JUMP_SPEED = 10'd20;
+  localparam [9:0] GRAVITY_ACCELERATION = 10'd10;
+  localparam [9:0] JUMP_SPEED = 10'd50;
 
   localparam [9:0] SCROLL_SPEED = 10'd20;
 
@@ -103,10 +106,14 @@ module tt_um_vga_example(
   reg [9:0] player_x = STARTING_X;
   reg [9:0] player_y = STARTING_Y;
 
-  reg [9:0] player_y_speed = 0;
-  reg [9:0] player_y_acceleration = 0;
+  reg signed [9:0] player_y_speed = 0;
+  reg signed [9:0] player_y_acceleration = $signed(GRAVITY_ACCELERATION);
 
   reg [2:0] player_position = 0; // 0 - Normal, 1 - Jump, 2 - Crouch
+  reg [7:0] player_keyframe = 0;
+
+  wire signed [9:0] player_next_speed_clone;
+  assign player_next_speed_clone = player_y_speed + player_y_acceleration;
 
   // Attack values
 
@@ -129,6 +136,10 @@ module tt_um_vga_example(
       sound_counter <= 0;
     end
   end
+
+  // Temp values
+  reg [9:0] temp_x = 0;
+  reg [9:0] temp_y = 0;
   
   // Game loop
   always @(posedge clk) begin
@@ -139,12 +150,61 @@ module tt_um_vga_example(
       B <= 0;
       player_x <= STARTING_X;
       player_y <= STARTING_Y;
+      player_y_speed <= 0;
+      player_y_acceleration <= $signed(GRAVITY_ACCELERATION);
+      player_position <= 0;
+      player_keyframe <= 0;
       sound_counter <= 0;
       play_sound <= 0;
       current_frequency <= HIGH_BEEP_FREQUENCY;
+      temp_x <= 0;
+      temp_y <= 0;
     end else begin
       if (video_active) begin
         // If pixel is visible, run game code
+
+        // Run once a frame
+        if (pix_x == 0 && pix_y == 0) begin
+          player_keyframe <= player_keyframe + 1;
+          // player_keyframe <= 3;
+
+          if (inp_up && player_position == 0) begin
+            player_y_speed <= -$signed(JUMP_SPEED);
+            // player_y_speed <= -10'sd1;
+            player_position <= 1;
+            player_keyframe <= 0;
+          end
+
+          // {player_y_speed, player_y} <= {{player_y_speed + player_y_acceleration}, {player_y + player_y_speed}};
+
+          // player_y_speed <= player_y_speed + player_y_acceleration;
+          // player_y <= player_y + player_y_speed;
+          // player_y_speed <= player_y_speed;
+          player_y <= player_y + player_y_speed;
+
+          if (player_position == 1) begin
+            player_y_speed <= player_y_speed + player_y_acceleration;
+          end
+          // player_y_speed <= player_next_speed_clone;
+          // player_y_speed <= player_next_speed_clone;
+          // player_y <= player_y_acceleration+50;
+
+          if ((player_y + PLAYER_HEIGHT[9:1]) > GROUND_Y) begin
+            player_y <= GROUND_Y - PLAYER_HEIGHT[9:1];
+            player_y_speed <= 0;
+            player_position <= 0;
+            player_keyframe <= 0;
+          end
+
+          if (player_position == 0 && player_keyframe >= 10) begin
+            player_keyframe <= 0;
+          end else if (player_position == 2 && player_keyframe >= 20) begin
+            player_position <= 0;
+            player_keyframe <= 0;
+          end
+        end
+
+        // Run once per pixel per frame
         if (pix_y > DIRT_Y) begin
           // If pixel is below grass, display color of dirt
           R <= DIRT_COLOR[5:4];
@@ -156,10 +216,91 @@ module tt_um_vga_example(
           G <= GROUND_COLOR[3:2];
           B <= GROUND_COLOR[1:0];
         end else begin
-          if (pix_x > (player_x - PLAYER_WIDTH[9:1]) && pix_x < (player_x + PLAYER_WIDTH[9:1]) && pix_y > (player_y - PLAYER_HEIGHT[9:1]) && pix_y < (player_y + PLAYER_HEIGHT[9:1])) begin
-            R <= 3;
-            G <= 0;
-            B <= 0;
+          if (pix_x >= (player_x - PLAYER_WIDTH[9:1]) && pix_x <= (player_x + PLAYER_WIDTH[9:1]) && pix_y >= (player_y - PLAYER_HEIGHT[9:1]) && pix_y <= (player_y + PLAYER_HEIGHT[9:1])) begin
+            temp_x <= pix_x - player_x + PLAYER_WIDTH[9:1];
+            temp_y <= pix_y - player_y + PLAYER_HEIGHT[9:1];
+
+            if (player_position == 0) begin
+              if (player_keyframe < 5) begin
+                if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 30 && temp_y <= 40) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 40 && temp_y <= 70) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 60) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else begin
+                  // R <= 3;
+                  // G <= 0;
+                  // B <= 0;
+                  R <= BACKGROUND_COLOR[5:4];
+                  G <= BACKGROUND_COLOR[3:2];
+                  B <= BACKGROUND_COLOR[1:0];
+                end
+              end else begin
+                if (temp_x >= 10 && temp_x <= 40 && temp_y <= 40 && temp_y >= 10) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 40 && temp_y <= 50) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 50 && temp_y <= 70) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 15 && temp_x < 25 && temp_y > 60) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x > 25 && temp_x <= 35 && temp_y > 60) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 90) begin
+                  R <= PLAYER_BRIGHT_COLOR[5:4];
+                  G <= PLAYER_BRIGHT_COLOR[3:2];
+                  B <= PLAYER_BRIGHT_COLOR[1:0];
+                // end else if (temp_x >= 15 && temp_x <= 25 && temp_y > 60 && temp_y < 90) begin
+                //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                // end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 75 && temp_y < 90) begin
+                //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                end else begin
+                  // R <= 3;
+                  // G <= 0;
+                  // B <= 0;
+                  R <= BACKGROUND_COLOR[5:4];
+                  G <= BACKGROUND_COLOR[3:2];
+                  B <= BACKGROUND_COLOR[1:0];
+                end
+              end
+            end else begin
+              R <= PLAYER_BRIGHT_COLOR[5:4];
+              G <= PLAYER_BRIGHT_COLOR[3:2];
+              B <= PLAYER_BRIGHT_COLOR[1:0];
+            end
           end else begin
             R <= BACKGROUND_COLOR[5:4];
             G <= BACKGROUND_COLOR[3:2];
