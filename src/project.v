@@ -33,12 +33,22 @@ module tt_um_vga_example(
   // assign {R,G,B} = {6{video_active * sound}}; //
   // assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
   // assign uio_out = {sound, 7'b0};
-  assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
-  assign uio_out = {sound, 7'b0}; //
+  // assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
+  // assign uio_out = {sound, 7'b0}; //
 
-  // Unused outputs assigned to 0
-  // assign uio_out = 0;
-  assign uio_oe  = 0;
+  // // Unused outputs assigned to 0
+  // // assign uio_out = 0;
+  // assign uio_oe  = 0;
+
+  // // Suppress unused signals warning
+  // wire _unused_ok = &{ena, ui_in, uio_in};
+
+  // TinyVGA PMOD
+  assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
+  assign uio_out = {sound, 7'b0};
+
+  // Unused outputs assigned to 0.
+  assign uio_oe  = 8'hff; // This line was the solution to audio issue
 
   // Suppress unused signals warning
   wire _unused_ok = &{ena, ui_in, uio_in};
@@ -97,10 +107,37 @@ module tt_um_vga_example(
 
   reg [32:0] sound_counter = 0;
 
+  // assign sound = pix_y < 262;
+
+  // always @(posedge clk) begin
+  //   // sound <= pix_y < 262;
+  //   if (pix_x == 0) begin
+  //     if (sound_counter > 481) begin
+  //       counter <= counter + 1;
+  //       sound <= ~sound;
+  //       sound_counter <= 0;
+  //     end else begin
+  //       sound_counter <= sound_counter + 1;
+  //     end
+  //   end
+  // end
+
+  // 10000000Hz clock speed from test below
+
+  // always @(posedge clk) begin
+  //   if (sound_counter > 10000000) begin
+  //     counter <= counter + 1;
+  //     sound <= ~sound;
+  //     sound_counter <= 0;
+  //   end else begin
+  //     sound_counter <= sound_counter + 1;
+  //   end
+  // end
+
   always @(posedge clk) begin
-    if (sound_counter > 62500) begin
+    if (sound_counter > 100000) begin
       counter <= counter + 1;
-      sound <= !sound;
+      sound <= ~sound;
       sound_counter <= 0;
     end else begin
       sound_counter <= sound_counter + 1;

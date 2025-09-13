@@ -9,3 +9,20 @@ Description: I first began today by trying to setup a basic diplay demo with 3 v
 ![Image of Vertical Bar Demo](./images/Hour1-2/1.png)
 ![Image of Vertical Bar Demo When Tuned To Audio Frequency](./images/Hour1-2/2.png)
 ![Image of Vertical Bar Demo In VGA Playground Editor](./images/Hour1-2/3.png)
+
+
+Hour 3
+
+Date: 09/13/2025 (mm/dd/yyyy)
+
+Time range: 8:30 AM - 9:30 AM
+
+Description: Today I continued attempting to solve the audio issue. I began by trying and changing the counter values to see if changing the frequency would work. Unfortunately that did not work. I then tried modifying the types of operators used to flip the bit value of the sound wave to see if maybe that was the issue. But again, this did not work. I even tried simplifying the music demo to a single tone and copied the line of code into my project.
+
+![Image of First Line Copied](./images/Hour3/1.png)
+![Image of Second Line Copied](./images/Hour3/2.png)
+
+This did not work for me which led me to become curious of the differences in setup between my prject and the music demo. This is because identical code should provide identical results if the conditions are the same leading me to believe that I had a slight change in the way I intialized my code. Lo and behold, this was in fact the issue and I was finally able to get a solid tone to play from the game's audio. This means that I now have all the tools necessary to begin programming the game logic itself and plan on beginning that in the next hour. The first step before that, however, is to clean up the code and comment as necessary because it currently looks very messy. The image of the minute set-up change I had to make can be found below.
+
+![Image of Old Line](./images/Hour3/3.png)
+![Image of Inage of New Line](./images/Hour3/4.png)
