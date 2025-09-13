@@ -26,3 +26,15 @@ This did not work for me which led me to become curious of the differences in se
 
 ![Image of Old Line](./images/Hour3/3.png)
 ![Image of Inage of New Line](./images/Hour3/4.png)
+
+
+Hour 4
+
+Date: 09/13/2025 (mm/dd/yyyy)
+
+Time range: 10:00 AM - 11:00 AM
+
+Description: I spent this next hour wokring on building out the fundemental blocks of the game. After cleaning up the codebase and commenting for clarity, I then began by making a list of constants to control the finer details of te game and refine them afterwards without changing a large chunk of game logic. To do this, I started by generating a nice [color palette](https://coolors.co/522b29-37ff8b-51d6ff-8d9ec6-a06b9a) and converting it into 2-bit RGB values for my game. I then determined positions, speeds and acceleration values and made them constants as well. I then worked on making a simple audio control system to play beeps as necessary. I then worked to make the display logic in the game loop to actually display the sky, grass and dirt along with a temporary red box representing the main character. An image of the work completed at this point can be found below.
+
+![Image of Game](./images/Hour4/1.png)
+

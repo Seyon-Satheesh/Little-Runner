@@ -1,8 +1,8 @@
 /*
- * Blank VGA Project Template
+ * Tiny Runner
  * 
- * This template provides a clean starting point for VGA projects
- * with the basic TinyTapeout structure and HSync/VSync generator included.
+ * A game where you run forever and avoid objects.
+ * Keep your tiny runner alive for as long as possible.
  */
 
 `default_nettype none
@@ -27,21 +27,7 @@ module tt_um_vga_example(
   wire video_active;
   wire [9:0] pix_x;
   wire [9:0] pix_y;
-  reg sound; //
-
-  // TinyVGA PMOD - correct pin assignment
-  // assign {R,G,B} = {6{video_active * sound}}; //
-  // assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
-  // assign uio_out = {sound, 7'b0};
-  // assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
-  // assign uio_out = {sound, 7'b0}; //
-
-  // // Unused outputs assigned to 0
-  // // assign uio_out = 0;
-  // assign uio_oe  = 0;
-
-  // // Suppress unused signals warning
-  // wire _unused_ok = &{ena, ui_in, uio_in};
+  reg sound;
 
   // TinyVGA PMOD
   assign uo_out = {hsync, B[0], G[0], R[0], vsync, B[1], G[1], R[1]};
@@ -89,107 +75,99 @@ module tt_um_vga_example(
       .r(inp_r)
   );
 
-  // TODO: Add your VGA logic here!
-  // Example: Generate a colorful test pattern to demonstrate VGA capabilities
+  // GAME LOGIC
 
-  reg counter_tick = 0;
-  reg [12:0] counter = 0;
-  // reg [12:0] sound_counter = 0;
+  // Constants
+  localparam [5:0] BACKGROUND_COLOR = {2'b01, 2'b10, 2'b11};
+  localparam [5:0] GROUND_COLOR = {2'b01, 2'b11, 2'b10};
+  localparam [5:0] DIRT_COLOR = {2'b10, 2'b01, 2'b01};
 
-  // always @(posedge clk) begin
-  //   if (sound_counter > 5000) begin
-  //     sound_counter <= 0;
-  //     sound <= !sound;
-  //   end else begin
-  //     sound_counter <= sound_counter + 1;
-  //   end
-  // end
+  localparam [31:0] HIGH_BEEP_FREQUENCY = 32'd50000;
+  localparam [31:0] LOW_BEEP_FREQUENCY = 32'd500000;
 
-  reg [32:0] sound_counter = 0;
+  localparam [9:0] GROUND_Y = 10'd400;
+  localparam [9:0] DIRT_Y = 10'd410;
 
-  // assign sound = pix_y < 262;
+  localparam [9:0] GRAVITY_ACCELERATION = 10'd2;
+  localparam [9:0] JUMP_SPEED = 10'd20;
 
-  // always @(posedge clk) begin
-  //   // sound <= pix_y < 262;
-  //   if (pix_x == 0) begin
-  //     if (sound_counter > 481) begin
-  //       counter <= counter + 1;
-  //       sound <= ~sound;
-  //       sound_counter <= 0;
-  //     end else begin
-  //       sound_counter <= sound_counter + 1;
-  //     end
-  //   end
-  // end
+  localparam [9:0] SCROLL_SPEED = 10'd20;
 
-  // 10000000Hz clock speed from test below
+  localparam [9:0] PLAYER_WIDTH = 10'd50;
+  localparam [9:0] PLAYER_HEIGHT = 10'd100;
 
-  // always @(posedge clk) begin
-  //   if (sound_counter > 10000000) begin
-  //     counter <= counter + 1;
-  //     sound <= ~sound;
-  //     sound_counter <= 0;
-  //   end else begin
-  //     sound_counter <= sound_counter + 1;
-  //   end
-  // end
+  localparam [9:0] STARTING_X = 10'd100;
+  localparam [9:0] STARTING_Y = GROUND_Y - PLAYER_HEIGHT[9:1];
+
+  // Player values
+  reg [9:0] player_x = STARTING_X;
+  reg [9:0] player_y = STARTING_Y;
+
+  reg [9:0] player_y_speed = 0;
+  reg [9:0] player_y_acceleration = 0;
+
+  reg [2:0] player_position = 0; // 0 - Normal, 1 - Jump, 2 - Crouch
+
+  // Attack values
+
+
+  // Audio logic
+  reg [31:0] sound_counter = 0;
+  reg [31:0] current_frequency = HIGH_BEEP_FREQUENCY;
+  reg play_sound = 0;
 
   always @(posedge clk) begin
-    if (sound_counter > 100000) begin
-      counter <= counter + 1;
-      sound <= ~sound;
-      sound_counter <= 0;
+    if (play_sound) begin
+      if (sound_counter > current_frequency) begin
+        sound <= ~sound;
+        sound_counter <= 0;
+      end else begin
+        sound_counter <= sound_counter + 1;
+      end
     end else begin
-      sound_counter <= sound_counter + 1;
+      sound <= 0;
+      sound_counter <= 0;
     end
   end
   
+  // Game loop
   always @(posedge clk) begin
-    // if (pix_x < 50) begin
-    //   if (sound_counter > 2) begin
-    //     sound_counter <= 0;
-    //     sound <= !sound;
-    //   end else begin
-    //     sound_counter <= sound_counter + 1;
-    //   end
-    // end
-
-    // if (pix_x == 0 && pix_y == 0) begin
-    //   if (sound_counter > 1) begin
-    //     sound_counter <= 0;
-    //     sound <= !sound;
-    //   end else begin
-    //     sound_counter <= sound_counter + 1;
-    //   end
-    // end
-
-    if (inp_up && !counter_tick) begin
-      counter_tick <= 1;
-      counter <= counter + 1;
-    end else if (!inp_up) begin
-      counter_tick <= 0;
-    end
-
     if (~rst_n) begin
+      // Reset values if reset button pressed
       R <= 0;
       G <= 0;
       B <= 0;
+      player_x <= STARTING_X;
+      player_y <= STARTING_Y;
+      sound_counter <= 0;
+      play_sound <= 0;
+      current_frequency <= HIGH_BEEP_FREQUENCY;
     end else begin
       if (video_active) begin
-        if (pix_x < 220) begin
-          R <= 1 + counter;
-          G <= 1 + counter;
-          B <= 1 + counter;
-        end else if (pix_x < 440) begin
-          R <= 2 + counter;
-          G <= 2 + counter;
-          B <= 2 + counter;
+        // If pixel is visible, run game code
+        if (pix_y > DIRT_Y) begin
+          // If pixel is below grass, display color of dirt
+          R <= DIRT_COLOR[5:4];
+          G <= DIRT_COLOR[3:2];
+          B <= DIRT_COLOR[1:0];
+        end else if (pix_y > GROUND_Y) begin
+          // If pixel is in grass range, display color of grass
+          R <= GROUND_COLOR[5:4];
+          G <= GROUND_COLOR[3:2];
+          B <= GROUND_COLOR[1:0];
         end else begin
-          R <= 3 + counter;
-          G <= 3 + counter;
-          B <= 3 + counter;
+          if (pix_x > (player_x - PLAYER_WIDTH[9:1]) && pix_x < (player_x + PLAYER_WIDTH[9:1]) && pix_y > (player_y - PLAYER_HEIGHT[9:1]) && pix_y < (player_y + PLAYER_HEIGHT[9:1])) begin
+            R <= 3;
+            G <= 0;
+            B <= 0;
+          end else begin
+            R <= BACKGROUND_COLOR[5:4];
+            G <= BACKGROUND_COLOR[3:2];
+            B <= BACKGROUND_COLOR[1:0];
+          end
         end
       end else begin
+        // If pixel not on screen, display plain black
         R <= 0;
         G <= 0;
         B <= 0;
