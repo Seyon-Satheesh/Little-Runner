@@ -81,7 +81,6 @@ module tt_um_vga_example(
   localparam [9:0] DISPLAY_WIDTH = 640;
   localparam [9:0] DISPLAY_HEIGHT = 480;
 
-
   localparam [5:0] BACKGROUND_COLOR = {2'b01, 2'b10, 2'b11};
   localparam [5:0] GROUND_COLOR = {2'b01, 2'b11, 2'b10};
   localparam [5:0] DIRT_COLOR = {2'b10, 2'b01, 2'b01};
@@ -89,11 +88,17 @@ module tt_um_vga_example(
   localparam [5:0] SUN_COLOR = {2'b11, 2'b11, 2'b01};
   localparam [5:0] BREEZE_COLOR = {2'b11, 2'b11, 2'b11};
 
+  localparam [5:0] SPIKE_COLOR = {2'b10, 2'b10, 2'b10};
+  localparam [5:0] DART_COLOR = {2'b01, 2'b01, 2'b01};
+
   localparam [5:0] PLAYER_BRIGHT_COLOR = {2'b10, 2'b01, 2'b10};
   localparam [5:0] PLAYER_DARK_COLOR = {2'b01, 2'b10, 2'b10};
 
   localparam [31:0] HIGH_BEEP_FREQUENCY = 32'd50000;
   localparam [31:0] LOW_BEEP_FREQUENCY = 32'd500000;
+
+  localparam [31:0] JUMP_BEEP_FREQUENCY = 32'd30000;
+  localparam [31:0] CROUCH_BEEP_FREQUENCY = 32'd40000;
 
   localparam [9:0] GROUND_Y = 10'd400;
   localparam [9:0] DIRT_Y = 10'd410;
@@ -102,13 +107,16 @@ module tt_um_vga_example(
   localparam [9:0] JUMP_SPEED = 10'd50;
 
   localparam [9:0] SCROLL_SPEED = 10'd20;
-  localparam [9:0] SCROLL_SPEED_INCREMENT_FRAMES = 10'd20;
+  localparam [9:0] SCROLL_SPEED_INCREMENT_FRAMES = 10'd60;
+  localparam [9:0] MAX_SCROLL_SPEED = 10'd200;
 
   localparam [9:0] PLAYER_WIDTH = 10'd50;
   localparam [9:0] PLAYER_HEIGHT = 10'd100;
 
   localparam [9:0] STARTING_X = 10'd100;
   localparam [9:0] STARTING_Y = GROUND_Y - PLAYER_HEIGHT[9:1];
+
+  localparam [9:0] STARTING_ATTACK_BUFFER = 400;
 
   localparam [3:0] COOLDOWN_FRAMES = 0;
 
@@ -117,7 +125,9 @@ module tt_um_vga_example(
 
   localparam [9:0] DART_WIDTH = 10'd100;
   localparam [9:0] DART_HEIGHT = 10'd50;
-  localparam [9:0] DART_STARTING_Y = GROUND_Y - 150;
+  localparam [9:0] DART_STARTING_Y = GROUND_Y - 100;
+
+  localparam [9:0] BEEP_LENGTH = 5;
 
   // Player values
   reg [9:0] player_x = STARTING_X;
@@ -134,14 +144,28 @@ module tt_um_vga_example(
 
   // Attack values
   reg attack_type = 0; // 0 - Spike, 1 - Dart
-  reg [9:0] attack_x = DISPLAY_WIDTH;
+  reg [9:0] attack_x = DISPLAY_WIDTH + SPIKE_WIDTH[9:1];
   reg [9:0] attack_y = GROUND_Y - SPIKE_HEIGHT[9:1];
 
   reg [9:0] scroll_speed_value = SCROLL_SPEED;
   reg [9:0] scroll_speed_counter = 0;
 
+  wire [9:0] attack_width;
+  wire [9:0] attack_height;
+
+  assign attack_width = attack_type ? DART_WIDTH : SPIKE_WIDTH;
+  assign attack_height = attack_type ? DART_HEIGHT : SPIKE_HEIGHT;
+
   // Cooldown
   reg [3:0] cooldown_counter = 0;
+
+  // Beeps
+  reg beep_playing = 0;
+  reg [9:0] beep_counter = 0;
+
+  // End game
+  reg game_over = 0;
+  reg game_result = 0; // 0 - GAME OVER, 1 - YOU WON!
 
   // LFSR
   // From https://github.com/rejunity/tt08-vga-drop
@@ -187,7 +211,16 @@ module tt_um_vga_example(
       player_y_acceleration <= $signed(GRAVITY_ACCELERATION);
       player_position <= 0;
       player_keyframe <= 0;
+      attack_type <= 0;
+      attack_x <= DISPLAY_WIDTH + SPIKE_WIDTH[9:1] + STARTING_ATTACK_BUFFER;
+      attack_y <= GROUND_Y - SPIKE_HEIGHT[9:1];
+      scroll_speed_value <= SCROLL_SPEED;
+      scroll_speed_counter <= 0;
       cooldown_counter <= 0;
+      beep_playing <= 0;
+      beep_counter <= 0;
+      game_over <= 0;
+      game_result <= 0;
       sound_counter <= 0;
       play_sound <= 0;
       current_frequency <= HIGH_BEEP_FREQUENCY;
@@ -196,466 +229,542 @@ module tt_um_vga_example(
     end else begin
       if (video_active) begin
         // If pixel is visible, run game code
+        
+        if (!game_over) begin
+          // Run once a frame
+          if (pix_x == 0 && pix_y == 0) begin
+            player_keyframe <= player_keyframe + 1;
+            // player_keyframe <= 3;
 
-        // Run once a frame
-        if (pix_x == 0 && pix_y == 0) begin
-          player_keyframe <= player_keyframe + 1;
-          // player_keyframe <= 3;
-          
-          if (scroll_speed_counter >= SCROLL_SPEED_INCREMENT_FRAMES) begin
-            scroll_speed_value <= scroll_speed_value + 1;
-            scroll_speed_counter <= 0;
+            if (beep_playing && beep_counter < BEEP_LENGTH) begin
+              beep_counter <= beep_counter + 1;
+            end else if (beep_playing) begin
+              beep_counter <= 0;
+              beep_playing <= 0;
+              play_sound <= 0;
+            end
+
+            attack_x <= attack_x - scroll_speed_value;
+
+            if (player_position == 2) begin
+              if (attack_x + attack_width[9:1] > player_x - PLAYER_WIDTH[9:1] && attack_x - attack_width[9:1] < player_x + PLAYER_WIDTH[9:1] && player_y < attack_y - attack_height[9:1]) begin
+                game_over <= 1;
+                beep_counter <= 0;
+                beep_playing <= 0;
+                play_sound <= 0;
+              end
+            end else begin
+              if (attack_x + attack_width[9:1] > player_x - PLAYER_WIDTH[9:1] && attack_x - attack_width[9:1] < player_x + PLAYER_WIDTH[9:1] && player_y + PLAYER_HEIGHT[9:1] > attack_y - attack_height[9:1]) begin
+                game_over <= 1;
+                beep_counter <= 0;
+                beep_playing <= 0;
+                play_sound <= 0;
+              end
+            end
+
+            if (attack_x <= 20) begin
+              attack_type <= lfsr[0];
+              
+              if (lfsr[0]) begin
+                attack_x <= DISPLAY_WIDTH + DART_WIDTH[9:1];
+                attack_y <= DART_STARTING_Y - DART_HEIGHT[9:1];
+              end else begin
+                attack_x <= DISPLAY_WIDTH + SPIKE_WIDTH[9:1];
+                attack_y <= GROUND_Y - SPIKE_HEIGHT[9:1];
+              end
+            end
+            
+            if (scroll_speed_counter >= SCROLL_SPEED_INCREMENT_FRAMES) begin
+              scroll_speed_value <= scroll_speed_value + 1;
+              scroll_speed_counter <= 0;
+            end else begin
+              scroll_speed_counter <= scroll_speed_counter + 1;
+            end
+
+            if (player_position == 0 && cooldown_counter < COOLDOWN_FRAMES) begin
+              cooldown_counter <= cooldown_counter + 1;
+            end
+
+            if (inp_up && player_position == 0 && cooldown_counter >= COOLDOWN_FRAMES) begin
+              player_y_speed <= -$signed(JUMP_SPEED);
+              // player_y_speed <= -10'sd1;
+              player_position <= 1;
+              player_keyframe <= 0;
+              cooldown_counter <= 0;
+
+              beep_playing <= 1;
+              play_sound <= 1;
+              current_frequency <= JUMP_BEEP_FREQUENCY;
+            end
+
+            if (inp_down && player_position == 0 && cooldown_counter >= COOLDOWN_FRAMES) begin
+              player_position <= 2;
+              player_keyframe <= 0;
+              cooldown_counter <= 0;
+
+              beep_playing <= 1;
+              play_sound <= 1;
+              current_frequency <= CROUCH_BEEP_FREQUENCY;
+            end
+
+            // {player_y_speed, player_y} <= {{player_y_speed + player_y_acceleration}, {player_y + player_y_speed}};
+
+            // player_y_speed <= player_y_speed + player_y_acceleration;
+            // player_y <= player_y + player_y_speed;
+            // player_y_speed <= player_y_speed;
+
+            player_y <= player_y + player_y_speed;
+            // player_y <= 100 + player_y_speed + player_y_acceleration;
+            // player_y_speed <= player_y_speed + player_y_acceleration;
+
+            if (player_position == 1) begin
+              player_y_speed <= player_y_speed + player_y_acceleration;
+            end
+            // player_y_speed <= player_next_speed_clone;
+            // player_y_speed <= player_next_speed_clone;
+            // player_y <= player_y_acceleration+50;
+
+            if ((player_y + PLAYER_HEIGHT[9:1]) > GROUND_Y) begin
+              player_y <= GROUND_Y - PLAYER_HEIGHT[9:1];
+              player_y_speed <= 0;
+              player_position <= 0;
+              player_keyframe <= 0;
+            end
+
+            if (player_position == 0 && player_keyframe >= 10) begin
+              player_keyframe <= 0;
+            end else if (player_position == 2 && player_keyframe >= 20) begin
+              player_position <= 0;
+              player_keyframe <= 0;
+            end
+          end
+
+          // Run once per pixel per frame
+          if (pix_y > DIRT_Y) begin
+            // If pixel is below grass, display color of dirt
+            R <= DIRT_COLOR[5:4];
+            G <= DIRT_COLOR[3:2];
+            B <= DIRT_COLOR[1:0];
+          end else if (pix_y > GROUND_Y) begin
+            // If pixel is in grass range, display color of grass
+            R <= GROUND_COLOR[5:4];
+            G <= GROUND_COLOR[3:2];
+            B <= GROUND_COLOR[1:0];
           end else begin
-            scroll_speed_counter <= scroll_speed_counter + 1;
-          end
+            if (pix_x >= (player_x - PLAYER_WIDTH[9:1]) && pix_x <= (player_x + PLAYER_WIDTH[9:1]) && pix_y >= (player_y - PLAYER_HEIGHT[9:1]) && pix_y <= (player_y + PLAYER_HEIGHT[9:1])) begin
+              temp_x <= pix_x - player_x + PLAYER_WIDTH[9:1];
+              temp_y <= pix_y - player_y + PLAYER_HEIGHT[9:1];
 
-          if (player_position == 0 && cooldown_counter < COOLDOWN_FRAMES) begin
-            cooldown_counter <= cooldown_counter + 1;
-          end
-
-          if (inp_up && player_position == 0 && cooldown_counter >= COOLDOWN_FRAMES) begin
-            player_y_speed <= -$signed(JUMP_SPEED);
-            // player_y_speed <= -10'sd1;
-            player_position <= 1;
-            player_keyframe <= 0;
-            cooldown_counter <= 0;
-          end
-
-          if (inp_down && player_position == 0 && cooldown_counter >= COOLDOWN_FRAMES) begin
-            player_position <= 2;
-            player_keyframe <= 0;
-            cooldown_counter <= 0;
-          end
-
-          // {player_y_speed, player_y} <= {{player_y_speed + player_y_acceleration}, {player_y + player_y_speed}};
-
-          // player_y_speed <= player_y_speed + player_y_acceleration;
-          // player_y <= player_y + player_y_speed;
-          // player_y_speed <= player_y_speed;
-
-          player_y <= player_y + player_y_speed;
-          // player_y <= 100 + player_y_speed + player_y_acceleration;
-          // player_y_speed <= player_y_speed + player_y_acceleration;
-
-          if (player_position == 1) begin
-            player_y_speed <= player_y_speed + player_y_acceleration;
-          end
-          // player_y_speed <= player_next_speed_clone;
-          // player_y_speed <= player_next_speed_clone;
-          // player_y <= player_y_acceleration+50;
-
-          if ((player_y + PLAYER_HEIGHT[9:1]) > GROUND_Y) begin
-            player_y <= GROUND_Y - PLAYER_HEIGHT[9:1];
-            player_y_speed <= 0;
-            player_position <= 0;
-            player_keyframe <= 0;
-          end
-
-          if (player_position == 0 && player_keyframe >= 10) begin
-            player_keyframe <= 0;
-          end else if (player_position == 2 && player_keyframe >= 20) begin
-            player_position <= 0;
-            player_keyframe <= 0;
-          end
-        end
-
-        // Run once per pixel per frame
-        if (pix_y > DIRT_Y) begin
-          // If pixel is below grass, display color of dirt
-          R <= DIRT_COLOR[5:4];
-          G <= DIRT_COLOR[3:2];
-          B <= DIRT_COLOR[1:0];
-        end else if (pix_y > GROUND_Y) begin
-          // If pixel is in grass range, display color of grass
-          R <= GROUND_COLOR[5:4];
-          G <= GROUND_COLOR[3:2];
-          B <= GROUND_COLOR[1:0];
-        end else begin
-          if (pix_x >= (player_x - PLAYER_WIDTH[9:1]) && pix_x <= (player_x + PLAYER_WIDTH[9:1]) && pix_y >= (player_y - PLAYER_HEIGHT[9:1]) && pix_y <= (player_y + PLAYER_HEIGHT[9:1])) begin
-            temp_x <= pix_x - player_x + PLAYER_WIDTH[9:1];
-            temp_y <= pix_y - player_y + PLAYER_HEIGHT[9:1];
-
-            if (player_position == 0) begin
-              if (player_keyframe < 5) begin
-                if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 30 && temp_y <= 40) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 40 && temp_y <= 70) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 60) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
+              if (player_position == 0) begin
+                if (player_keyframe < 5) begin
+                  if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 30 && temp_y <= 40) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 40 && temp_y <= 70) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 60) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else begin
+                    // R <= 3;
+                    // G <= 0;
+                    // B <= 0;
+                    R <= BACKGROUND_COLOR[5:4];
+                    G <= BACKGROUND_COLOR[3:2];
+                    B <= BACKGROUND_COLOR[1:0];
+                  end
                 end else begin
-                  // R <= 3;
-                  // G <= 0;
-                  // B <= 0;
+                  if (temp_x >= 10 && temp_x <= 40 && temp_y <= 40 && temp_y >= 10) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 40 && temp_y <= 50) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 50 && temp_y <= 70) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 15 && temp_x < 25 && temp_y > 60) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x > 25 && temp_x <= 35 && temp_y > 60) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 90) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  // end else if (temp_x >= 15 && temp_x <= 25 && temp_y > 60 && temp_y < 90) begin
+                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                  // end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 75 && temp_y < 90) begin
+                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else begin
+                    // R <= 3;
+                    // G <= 0;
+                    // B <= 0;
+                    R <= BACKGROUND_COLOR[5:4];
+                    G <= BACKGROUND_COLOR[3:2];
+                    B <= BACKGROUND_COLOR[1:0];
+                  end
+                end
+              end else if (player_position == 1) begin
+                if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 30 && temp_y <= 40) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 40 && temp_y <= 80) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 60) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 60) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  // end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
+                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                  // end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
+                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else begin
+                    // R <= 3;
+                    // G <= 0;
+                    // B <= 0;
+                    R <= BACKGROUND_COLOR[5:4];
+                    G <= BACKGROUND_COLOR[3:2];
+                    B <= BACKGROUND_COLOR[1:0];
+                  end
+              end else if (player_position == 2) begin
+                if (temp_x >= 10 && temp_x <= 40 && temp_y >= 40 && temp_y <= 60) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 60 && temp_y <= 70) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 70 && temp_y <= 90) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 80) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 80) begin
+                    R <= PLAYER_BRIGHT_COLOR[5:4];
+                    G <= PLAYER_BRIGHT_COLOR[3:2];
+                    B <= PLAYER_BRIGHT_COLOR[1:0];
+                  // end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
+                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                  // end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
+                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
+                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
+                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
+                  end else begin
+                    // R <= 3;
+                    // G <= 0;
+                    // B <= 0;
+                    R <= BACKGROUND_COLOR[5:4];
+                    G <= BACKGROUND_COLOR[3:2];
+                    B <= BACKGROUND_COLOR[1:0];
+                  end
+              end else begin
+                R <= PLAYER_BRIGHT_COLOR[5:4];
+                G <= PLAYER_BRIGHT_COLOR[3:2];
+                B <= PLAYER_BRIGHT_COLOR[1:0];
+              end
+            end else if (pix_x > (DISPLAY_WIDTH - 150) && pix_y < 150) begin
+              if ((DISPLAY_WIDTH - pix_x) + pix_y < 100) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 100 && pix_x <= DISPLAY_WIDTH - 90 && pix_y <= 100 && pix_y >= 90)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 90 && pix_x <= DISPLAY_WIDTH - 80 && pix_y <= 90 && pix_y >= 80)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 80 && pix_x <= DISPLAY_WIDTH - 70 && pix_y <= 80 && pix_y >= 70)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 70 && pix_x <= DISPLAY_WIDTH - 60 && pix_y <= 70 && pix_y >= 60)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 25 && pix_x <= DISPLAY_WIDTH - 15 && pix_y <= 140 && pix_y >= 130)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 35 && pix_x <= DISPLAY_WIDTH - 25 && pix_y <= 130 && pix_y >= 120)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 25 && pix_x <= DISPLAY_WIDTH - 15 && pix_y <= 120 && pix_y >= 110)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 35 && pix_x <= DISPLAY_WIDTH - 25 && pix_y <= 110 && pix_y >= 100)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 100 && pix_x <= DISPLAY_WIDTH - 90 && pix_y <= 40 && pix_y >= 30)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 110 && pix_x <= DISPLAY_WIDTH - 100 && pix_y <= 30 && pix_y >= 20)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 120 && pix_x <= DISPLAY_WIDTH - 110 && pix_y <= 40 && pix_y >= 30)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              end else if ((pix_x >= DISPLAY_WIDTH - 130 && pix_x <= DISPLAY_WIDTH - 120 && pix_y <= 30 && pix_y >= 20)) begin
+                R <= SUN_COLOR[5:4];
+                G <= SUN_COLOR[3:2];
+                B <= SUN_COLOR[1:0];
+              // end else if ((pix_x >= DISPLAY_WIDTH - 140 && pix_x <= DISPLAY_WIDTH - 130 && pix_y <= 40 && pix_y >= 30)) begin
+              //   R <= SUN_COLOR[5:4];
+              //   G <= SUN_COLOR[3:2];
+              //   B <= SUN_COLOR[1:0];
+              end else begin
+                R <= BACKGROUND_COLOR[5:4];
+                G <= BACKGROUND_COLOR[3:2];
+                B <= BACKGROUND_COLOR[1:0];
+              end
+            end else if (pix_y < 200) begin
+              if ((pix_x >= 50 && pix_x <= 60 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 60 && pix_x <= 70 && pix_y >= 60 && pix_y <= 70)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 70 && pix_x <= 80 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 80 && pix_x <= 90 && pix_y >= 40 && pix_y <= 50)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 90 && pix_x <= 100 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 100 && pix_x <= 110 && pix_y >= 60 && pix_y <= 70)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 110 && pix_x <= 120 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 120 && pix_x <= 130 && pix_y >= 40 && pix_y <= 50)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 130 && pix_x <= 140 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 140 && pix_x <= 150 && pix_y >= 60 && pix_y <= 70)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 150 && pix_x <= 160 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 160 && pix_x <= 170 && pix_y >= 40 && pix_y <= 50)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 170 && pix_x <= 180 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 180 && pix_x <= 190 && pix_y >= 60 && pix_y <= 70)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 190 && pix_x <= 200 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 200 && pix_x <= 210 && pix_y >= 40 && pix_y <= 50)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 210 && pix_x <= 220 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 220 && pix_x <= 230 && pix_y >= 60 && pix_y <= 70)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 230 && pix_x <= 240 && pix_y >= 50 && pix_y <= 60)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              //
+              end else if ((pix_x >= 150 && pix_x <= 160 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 160 && pix_x <= 170 && pix_y >= 160 && pix_y <= 170)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 170 && pix_x <= 180 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 180 && pix_x <= 190 && pix_y >= 140 && pix_y <= 150)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 190 && pix_x <= 200 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 200 && pix_x <= 210 && pix_y >= 160 && pix_y <= 170)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 210 && pix_x <= 220 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 220 && pix_x <= 230 && pix_y >= 140 && pix_y <= 150)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 230 && pix_x <= 240 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 240 && pix_x <= 250 && pix_y >= 160 && pix_y <= 170)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 250 && pix_x <= 260 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 260 && pix_x <= 270 && pix_y >= 140 && pix_y <= 150)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 270 && pix_x <= 280 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 280 && pix_x <= 290 && pix_y >= 160 && pix_y <= 170)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 290 && pix_x <= 300 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 300 && pix_x <= 310 && pix_y >= 140 && pix_y <= 150)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 310 && pix_x <= 320 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 320 && pix_x <= 330 && pix_y >= 160 && pix_y <= 170)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else if ((pix_x >= 330 && pix_x <= 340 && pix_y >= 150 && pix_y <= 160)) begin
+                R <= BREEZE_COLOR[5:4];
+                G <= BREEZE_COLOR[3:2];
+                B <= BREEZE_COLOR[1:0];
+              end else begin
+                R <= BACKGROUND_COLOR[5:4];
+                G <= BACKGROUND_COLOR[3:2];
+                B <= BACKGROUND_COLOR[1:0];
+              end
+            end else if (pix_x >= (attack_x - attack_width[9:1]) && pix_x <= (attack_x + attack_width[9:1]) && pix_y >= (attack_y - attack_height[9:1]) && pix_y <= (attack_y + attack_height[9:1])) begin
+              temp_x <= pix_x - attack_x + attack_width[9:1];
+              temp_y <= pix_y - attack_y + attack_height[9:1];
+
+              if (attack_type == 0) begin
+                if (temp_x < attack_width[9:1] && (attack_width[9:1] - temp_x + attack_height - temp_y) <= 30) begin
+                  R <= SPIKE_COLOR[5:4];
+                  G <= SPIKE_COLOR[3:2];
+                  B <= SPIKE_COLOR[1:0];
+                end else if (temp_x > attack_width[9:1] && (temp_x - attack_width[9:1] + attack_height - temp_y) <= 30) begin
+                  R <= SPIKE_COLOR[5:4];
+                  G <= SPIKE_COLOR[3:2];
+                  B <= SPIKE_COLOR[1:0];
+                end else begin
                   R <= BACKGROUND_COLOR[5:4];
                   G <= BACKGROUND_COLOR[3:2];
                   B <= BACKGROUND_COLOR[1:0];
                 end
               end else begin
-                if (temp_x >= 10 && temp_x <= 40 && temp_y <= 40 && temp_y >= 10) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 40 && temp_y <= 50) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 50 && temp_y <= 70) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 15 && temp_x < 25 && temp_y > 60) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x > 25 && temp_x <= 35 && temp_y > 60) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 90) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                // end else if (temp_x >= 15 && temp_x <= 25 && temp_y > 60 && temp_y < 90) begin
-                //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                // end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 75 && temp_y < 90) begin
-                //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else begin
-                  // R <= 3;
-                  // G <= 0;
-                  // B <= 0;
-                  R <= BACKGROUND_COLOR[5:4];
-                  G <= BACKGROUND_COLOR[3:2];
-                  B <= BACKGROUND_COLOR[1:0];
-                end
+                R <= DART_COLOR[5:4];
+                G <= DART_COLOR[3:2];
+                B <= DART_COLOR[1:0];
               end
-            end else if (player_position == 1) begin
-              if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 30 && temp_y <= 40) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 40 && temp_y <= 80) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 60) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 60) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                // end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
-                //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                // end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
-                //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else begin
-                  // R <= 3;
-                  // G <= 0;
-                  // B <= 0;
-                  R <= BACKGROUND_COLOR[5:4];
-                  G <= BACKGROUND_COLOR[3:2];
-                  B <= BACKGROUND_COLOR[1:0];
-                end
-            end else if (player_position == 2) begin
-              if (temp_x >= 10 && temp_x <= 40 && temp_y >= 40 && temp_y <= 60) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 20 && temp_x <= 30 && temp_y > 60 && temp_y <= 70) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 15 && temp_x <= 35 && temp_y > 70 && temp_y <= 90) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 35 && temp_x <= 45 && temp_y > 80) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 80) begin
-                  R <= PLAYER_BRIGHT_COLOR[5:4];
-                  G <= PLAYER_BRIGHT_COLOR[3:2];
-                  B <= PLAYER_BRIGHT_COLOR[1:0];
-                // end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
-                //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                // end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
-                //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                end else begin
-                  // R <= 3;
-                  // G <= 0;
-                  // B <= 0;
-                  R <= BACKGROUND_COLOR[5:4];
-                  G <= BACKGROUND_COLOR[3:2];
-                  B <= BACKGROUND_COLOR[1:0];
-                end
-            end else begin
-              R <= PLAYER_BRIGHT_COLOR[5:4];
-              G <= PLAYER_BRIGHT_COLOR[3:2];
-              B <= PLAYER_BRIGHT_COLOR[1:0];
-            end
-          end else if (pix_x > (DISPLAY_WIDTH - 150) && pix_y < 150) begin
-            if ((DISPLAY_WIDTH - pix_x) + pix_y < 100) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 100 && pix_x <= DISPLAY_WIDTH - 90 && pix_y <= 100 && pix_y >= 90)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 90 && pix_x <= DISPLAY_WIDTH - 80 && pix_y <= 90 && pix_y >= 80)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 80 && pix_x <= DISPLAY_WIDTH - 70 && pix_y <= 80 && pix_y >= 70)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 70 && pix_x <= DISPLAY_WIDTH - 60 && pix_y <= 70 && pix_y >= 60)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 25 && pix_x <= DISPLAY_WIDTH - 15 && pix_y <= 140 && pix_y >= 130)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 35 && pix_x <= DISPLAY_WIDTH - 25 && pix_y <= 130 && pix_y >= 120)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 25 && pix_x <= DISPLAY_WIDTH - 15 && pix_y <= 120 && pix_y >= 110)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 35 && pix_x <= DISPLAY_WIDTH - 25 && pix_y <= 110 && pix_y >= 100)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 100 && pix_x <= DISPLAY_WIDTH - 90 && pix_y <= 40 && pix_y >= 30)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 110 && pix_x <= DISPLAY_WIDTH - 100 && pix_y <= 30 && pix_y >= 20)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 120 && pix_x <= DISPLAY_WIDTH - 110 && pix_y <= 40 && pix_y >= 30)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            end else if ((pix_x >= DISPLAY_WIDTH - 130 && pix_x <= DISPLAY_WIDTH - 120 && pix_y <= 30 && pix_y >= 20)) begin
-              R <= SUN_COLOR[5:4];
-              G <= SUN_COLOR[3:2];
-              B <= SUN_COLOR[1:0];
-            // end else if ((pix_x >= DISPLAY_WIDTH - 140 && pix_x <= DISPLAY_WIDTH - 130 && pix_y <= 40 && pix_y >= 30)) begin
-            //   R <= SUN_COLOR[5:4];
-            //   G <= SUN_COLOR[3:2];
-            //   B <= SUN_COLOR[1:0];
             end else begin
               R <= BACKGROUND_COLOR[5:4];
               G <= BACKGROUND_COLOR[3:2];
               B <= BACKGROUND_COLOR[1:0];
             end
-          end else if (pix_y < 200) begin
-            if ((pix_x >= 50 && pix_x <= 60 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 60 && pix_x <= 70 && pix_y >= 60 && pix_y <= 70)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 70 && pix_x <= 80 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 80 && pix_x <= 90 && pix_y >= 40 && pix_y <= 50)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 90 && pix_x <= 100 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 100 && pix_x <= 110 && pix_y >= 60 && pix_y <= 70)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 110 && pix_x <= 120 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 120 && pix_x <= 130 && pix_y >= 40 && pix_y <= 50)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 130 && pix_x <= 140 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 140 && pix_x <= 150 && pix_y >= 60 && pix_y <= 70)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 150 && pix_x <= 160 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 160 && pix_x <= 170 && pix_y >= 40 && pix_y <= 50)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 170 && pix_x <= 180 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 180 && pix_x <= 190 && pix_y >= 60 && pix_y <= 70)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 190 && pix_x <= 200 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 200 && pix_x <= 210 && pix_y >= 40 && pix_y <= 50)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 210 && pix_x <= 220 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 220 && pix_x <= 230 && pix_y >= 60 && pix_y <= 70)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 230 && pix_x <= 240 && pix_y >= 50 && pix_y <= 60)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            //
-            end else if ((pix_x >= 150 && pix_x <= 160 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 160 && pix_x <= 170 && pix_y >= 160 && pix_y <= 170)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 170 && pix_x <= 180 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 180 && pix_x <= 190 && pix_y >= 140 && pix_y <= 150)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 190 && pix_x <= 200 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 200 && pix_x <= 210 && pix_y >= 160 && pix_y <= 170)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 210 && pix_x <= 220 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 220 && pix_x <= 230 && pix_y >= 140 && pix_y <= 150)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 230 && pix_x <= 240 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 240 && pix_x <= 250 && pix_y >= 160 && pix_y <= 170)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 250 && pix_x <= 260 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 260 && pix_x <= 270 && pix_y >= 140 && pix_y <= 150)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 270 && pix_x <= 280 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 280 && pix_x <= 290 && pix_y >= 160 && pix_y <= 170)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 290 && pix_x <= 300 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 300 && pix_x <= 310 && pix_y >= 140 && pix_y <= 150)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 310 && pix_x <= 320 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 320 && pix_x <= 330 && pix_y >= 160 && pix_y <= 170)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else if ((pix_x >= 330 && pix_x <= 340 && pix_y >= 150 && pix_y <= 160)) begin
-              R <= BREEZE_COLOR[5:4];
-              G <= BREEZE_COLOR[3:2];
-              B <= BREEZE_COLOR[1:0];
-            end else begin
-              R <= BACKGROUND_COLOR[5:4];
-              G <= BACKGROUND_COLOR[3:2];
-              B <= BACKGROUND_COLOR[1:0];
-            end
-          end else begin
-            R <= BACKGROUND_COLOR[5:4];
-            G <= BACKGROUND_COLOR[3:2];
-            B <= BACKGROUND_COLOR[1:0];
           end
+        end else begin
+          // Game over
+          R <= 0;
+          G <= 0;
+          B <= 0;
         end
       end else begin
         // If pixel not on screen, display plain black
