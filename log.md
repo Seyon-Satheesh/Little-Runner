@@ -81,3 +81,18 @@ Time range: 8:45 AM - 9:45 AM
 Description: I spent this last hour working on two tasks. The first was to add an endgame screen once a max maximum speed was reached. This is because handling the motion of the attacks after a given speed was nearly impossible as they were effectively traversing the entire screen in a singular frame. Once I had done this, I began the second task of playing a musical tune whenever the player dies or wins. While the majority of this code was straightforward (albeit tedious), I kept getting stuck at a point where the game would brick itself every time I attempted to select a singular note from the entire tune. I have tried moving the code from an always (*) block to the clk block but no difference was ever made. That task is now the primary focus of he next hour until I can get it to unbrick my game. A screenshot of the current state of the game can be seen below (erraneous code has been commented out).
 
 ![Image of Game Currently](./images/Hour12/1.png)
+
+
+Hour 13-16
+
+Date: 09/14/2025 (mm/dd/yyyy)
+
+Time range: 2:30 AM - 6:30 AM
+
+Description: I spent this last session refining the game as much as I possibly could. This began by first fixing the issue of the musical tune bricking the entire program. I attempted multiple changes, read a variety of articles on register assignment, swapped between blocking/non-blocking/both assignment and even tried using placeholder/temporary copy wires. None of these worked. After over an hour of dealing with this issue, I figured the easiest solution would be to complete an entire rewrite of the music logic and make it use the pre-existing note player rather than its own separate audio loop. While at first this felt like a big step backward by throwing all the pre-existing code and trials away, it vastly sped up the completion of this feature as this actually worked as intended quickly. Once I had completed this (and the associated work of picking notes for the end game music), I moved on to improving the end screens. I made them white text on a grey background for simplicity and aesthetic purposes. However, all the text on these screens needed to be hand-written manually in code which took close to 2 hours of work. This tedious process of adding white-pixel blocks one-by-one until their positions looked and felt right was extremely time-consuming but well-worth the cost as it improves the experience for the players of the game. Once I had completed that, I finished up by giving the dart attacks custom pixel artwork as well to complete the game's cohesive visual identity. Screenshots of the completed game could be found below.
+
+![Image of Game Currently](./images/Hour13-16/1.png)
+![Image of Game Over Screen](./images/Hour13-16/2.png)
+![Image of You Won! Screen](./images/Hour13-16/3.png)
+
+My next steps would be to clean-up the codebase, add descriptive comments, write a README and, if time is available, make the player multi-color to improve the aesthetics of the game.

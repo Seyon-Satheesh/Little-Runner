@@ -129,9 +129,11 @@ module tt_um_vga_example(
 
   localparam [9:0] BEEP_LENGTH = 5;
 
-  localparam [9:0] FRAMES_PER_TUNE_NOTE = 10'd15; // 15 frames for every note in the tune
+  localparam [9:0] FRAMES_PER_TUNE_NOTE = 10'd5; // 15 frames for every note in the tune
 
-  localparam [255:0] GAME_OVER_TUNE = {32'd50000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000};
+  // localparam [255:0] GAME_OVER_TUNE = {32'd500000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000};
+  localparam [255:0] GAME_OVER_TUNE = {{2{32'd30000, 32'd20000, 32'd15000}}, {2{32'd40000}}};
+  localparam [255:0] GAME_WON_TUNE = {{2{32'd30000, 32'd20000, 32'd15000}}, {2{32'd10000}}};
   // localparam [255:0] GAME_OVER_TUNE = {HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY};
 
   // Player values
@@ -172,6 +174,10 @@ module tt_um_vga_example(
   reg game_over = 0;
   reg game_result = 0; // 0 - GAME OVER, 1 - YOU WON!
 
+  reg [9:0] game_over_tune_frame_counter = 0;
+  reg [4:0] game_over_tune_note_counter = 0;
+  reg game_over_tune_reset = 0;
+
   // LFSR
   // From https://github.com/rejunity/tt08-vga-drop
   reg [12:0] lfsr;
@@ -194,69 +200,174 @@ module tt_um_vga_example(
         sound_counter <= sound_counter + 1;
       end
     end else begin
-      // sound <= 0;
+      sound <= 0;
       sound_counter <= 0;
     end
   end
 
   
-  reg [31:0] tune_counter = 0;
-  reg [9:0] tune_frame_counter = 0;
-  reg [255:0] current_tune = GAME_OVER_TUNE;
-  reg [4:0] current_note = 0;
-  reg play_tune = 0;
+  // reg [31:0] tune_counter = 0;
+  // reg [9:0] tune_frame_counter = 0;
+  // reg [255:0] current_tune = GAME_OVER_TUNE;
+  // reg [4:0] current_note = 0;
+  // reg play_tune = 0;
 
-  reg [31:0] current_note_frequency = 0;
+  // reg [31:0] current_note_frequency = 0;
+  // // wire [31:0] current_note_frequency = 0;
 
-  always @(posedge clk) begin
-    if (play_tune) begin
-      // WHY NOT WORKING?
-      // current_note_frequency <= current_tune[255:224];
-      // if (current_note == 0) begin
-      //   current_note_frequency <= current_tune[255:224];
-      // end else if (current_note == 1) begin
-      //   current_note_frequency <= current_tune[223:192];
-      // end else if (current_note == 2) begin
-      //   current_note_frequency <= current_tune[191:160];
-      // end else if (current_note == 3) begin
-      //   current_note_frequency <= current_tune[159:128];
-      // end else if (current_note == 4) begin
-      //   current_note_frequency <= current_tune[127:96];
-      // end else if (current_note == 5) begin
-      //   current_note_frequency <= current_tune[95:64];
-      // end else if (current_note == 6) begin
-      //   current_note_frequency <= current_tune[63:32];
-      // end else if (current_note == 7) begin
-      //   current_note_frequency <= current_tune[31:0];
-      // end else begin
-      //   current_note_frequency <= 0;
-      // end
+  // // wire [255:0] current_tune_wire;
 
-      if (pix_x == 0 && pix_y == 0) begin
-        if (tune_frame_counter >= FRAMES_PER_TUNE_NOTE) begin
-          if (current_note < 7) begin
-            current_note <= current_note + 1;
-          end else begin
-            play_tune <= 0;
-          end
-        end else begin
-          tune_frame_counter <= tune_frame_counter + 1;
-        end
-      end
+  // // assign current_tune_wire = current_tune;
 
-      if (tune_counter > current_note_frequency) begin
-        sound <= ~sound;
-        tune_counter <= 0;
-      end else begin
-        tune_counter <= tune_counter + 1;
-      end
-    end else begin
-      // sound <= 0;
-      tune_counter <= 0;
-      tune_frame_counter <= 0;
-      current_note <= 0;
-    end
-  end
+  // // always @* begin
+  // //   if (current_note == 0) begin
+  // //     current_note_frequency = current_tune[255:224];
+  // //   end else if (current_note == 1) begin
+  // //     current_note_frequency = current_tune[223:192];
+  // //   end else if (current_note == 2) begin
+  // //     current_note_frequency = current_tune[191:160];
+  // //   end else if (current_note == 3) begin
+  // //     current_note_frequency = current_tune[159:128];
+  // //   end else if (current_note == 4) begin
+  // //     current_note_frequency = current_tune[127:96];
+  // //   end else if (current_note == 5) begin
+  // //     current_note_frequency = current_tune[95:64];
+  // //   end else if (current_note == 6) begin
+  // //     current_note_frequency = current_tune[63:32];
+  // //   end else if (current_note == 7) begin
+  // //     current_note_frequency = current_tune[31:0];
+  // //   end else begin
+  // //     current_note_frequency = 0;
+  // //   end
+  // // end
+
+  // always @(posedge clk) begin
+  //   // current_note_frequency <= current_tune_wire[31:0];
+  //   // current_note_frequency <= current_tune[31:0];
+  //   // if (current_note == 0) begin
+  //   //   // current_note_frequency <= GAME_OVER_TUNE[255:224];
+  //   //   current_note_frequency <= current_tune[255:224];
+  //   // end else if (current_note == 1) begin
+  //   //   current_note_frequency <= current_tune[223:192];
+  //   // end else if (current_note == 2) begin
+  //   //   current_note_frequency <= current_tune[191:160];
+  //   // end else if (current_note == 3) begin
+  //   //   current_note_frequency <= current_tune[159:128];
+  //   // end else if (current_note == 4) begin
+  //   //   current_note_frequency <= current_tune[127:96];
+  //   // end else if (current_note == 5) begin
+  //   //   current_note_frequency <= current_tune[95:64];
+  //   // end else if (current_note == 6) begin
+  //   //   current_note_frequency <= current_tune[63:32];
+  //   // end else if (current_note == 7) begin
+  //   //   current_note_frequency <= current_tune[31:0];
+  //   // end else begin
+  //   //   current_note_frequency <= 0;
+  //   // end
+
+  //   if (play_tune) begin
+  //     // WHY NOT WORKING?
+  //     // current_note_frequency <= current_tune[31:0];
+  //     // current_tune <= GAME_OVER_TUNE;
+  //     if (current_note == 0) begin
+  //       current_note_frequency <= current_tune[255:224];
+  //     end else if (current_note == 1) begin
+  //       current_note_frequency <= current_tune[223:192];
+  //     end else if (current_note == 2) begin
+  //       current_note_frequency <= current_tune[191:160];
+  //     end else if (current_note == 3) begin
+  //       current_note_frequency <= current_tune[159:128];
+  //     end else if (current_note == 4) begin
+  //       current_note_frequency <= current_tune[127:96];
+  //     end else if (current_note == 5) begin
+  //       current_note_frequency <= current_tune[95:64];
+  //     end else if (current_note == 6) begin
+  //       current_note_frequency <= current_tune[63:32];
+  //     end else if (current_note == 7) begin
+  //       current_note_frequency <= current_tune[31:0];
+  //     end else begin
+  //       current_note_frequency <= 0;
+  //     end
+
+  //     if (pix_x == 0 && pix_y == 0) begin
+  //       if (tune_frame_counter >= FRAMES_PER_TUNE_NOTE) begin
+  //         if (current_note < 7) begin
+  //           current_note <= current_note + 1;
+  //         end else begin
+  //           play_tune <= 0;
+  //         end
+  //       end else begin
+  //         tune_frame_counter <= tune_frame_counter + 1;
+  //       end
+  //     end
+
+  //     // if (tune_counter > current_note_frequency) begin
+  //     if (tune_counter > current_note) begin
+  //       sound <= ~sound;
+  //       tune_counter <= 0;
+  //     end else begin
+  //       tune_counter <= tune_counter + 1;
+  //     end
+
+  //     // if (current_note == 0) begin
+  //     //   if (tune_counter > current_tune[255:224]) begin
+  //     //     sound <= ~sound;
+  //     //     tune_counter <= 0;
+  //     //   end else begin
+  //     //     tune_counter <= tune_counter + 1;
+  //     //   end
+  //     //   // current_note_frequency <= GAME_OVER_TUNE[255:224];
+  //     //   // current_note_frequency <= current_tune[255:224];
+  //     // end else if (current_note == 1) begin
+  //     //   // current_note_frequency <= current_tune[223:192];
+  //     // end else if (current_note == 2) begin
+  //     //   // current_note_frequency <= current_tune[191:160];
+  //     // end else if (current_note == 3) begin
+  //     //   // current_note_frequency <= current_tune[159:128];
+  //     // end else if (current_note == 4) begin
+  //     //   // current_note_frequency <= current_tune[127:96];
+  //     // end else if (current_note == 5) begin
+  //     //   // current_note_frequency <= current_tune[95:64];
+  //     // end else if (current_note == 6) begin
+  //     //   // current_note_frequency <= current_tune[63:32];
+  //     // end else if (current_note == 7) begin
+  //     //   // current_note_frequency <= current_tune[31:0];
+  //     // end else begin
+  //     //   // current_note_frequency <= 0;
+  //     // end
+
+  //     // if (current_note == 0 && tune_counter > current_tune[255:224]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else if (current_note == 1 && tune_counter > current_tune[223:192]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else if (current_note == 2 && tune_counter > current_tune[191:160]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else if (current_note == 3 && tune_counter > current_tune[159:128]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else if (current_note == 4 && tune_counter > current_tune[127:96]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else if (current_note == 5 && tune_counter > current_tune[63:32]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else if (current_note == 6 && tune_counter > current_tune[31:0]) begin
+  //     //   sound <= ~sound;
+  //     //   tune_counter <= 0;
+  //     // end else begin
+  //     //   tune_counter <= tune_counter + 1;
+  //     // end
+  //   end else begin
+  //     // sound <= 0;
+  //     tune_counter <= 0;
+  //     tune_frame_counter <= 0;
+  //     current_note <= 0;
+  //     current_note_frequency <= 0;
+  //   end
+  // end
 
   // Temp values
   reg [9:0] temp_x = 0;
@@ -283,16 +394,22 @@ module tt_um_vga_example(
       cooldown_counter <= 0;
       beep_playing <= 0;
       beep_counter <= 0;
+      // game_over <= 1;
+      // game_result <= 1;
       game_over <= 0;
       game_result <= 0;
       sound_counter <= 0;
       play_sound <= 0;
       current_frequency <= HIGH_BEEP_FREQUENCY;
-      tune_counter <= 0;
-      tune_frame_counter <= 0;
-      current_tune <= GAME_OVER_TUNE;
-      current_note <= 0;
-      play_tune <= 0;
+      // current_note_frequency <= 0;
+      // tune_counter <= 0;
+      // tune_frame_counter <= 0;
+      // current_tune <= GAME_OVER_TUNE;
+      // current_note <= 0;
+      // play_tune <= 0;
+      game_over_tune_frame_counter <= 0;
+      game_over_tune_note_counter <= 0;
+      game_over_tune_reset <= 0;
       temp_x <= 0;
       temp_y <= 0;
     end else begin
@@ -829,9 +946,27 @@ module tt_um_vga_example(
                   B <= BACKGROUND_COLOR[1:0];
                 end
               end else begin
-                R <= DART_COLOR[5:4];
-                G <= DART_COLOR[3:2];
-                B <= DART_COLOR[1:0];
+                if (temp_x <= attack_width[9:1] && temp_y <= attack_height[9:1] && (attack_width[9:1] - temp_x + 2*(attack_height[9:1] - temp_y)) <= 30) begin
+                  R <= DART_COLOR[5:4];
+                  G <= DART_COLOR[3:2];
+                  B <= DART_COLOR[1:0];
+                end else if (temp_x <= attack_width[9:1] && temp_y > attack_height[9:1] && (attack_width[9:1] - temp_x + 2*(temp_y - attack_height[9:1])) <= 30) begin
+                  R <= DART_COLOR[5:4];
+                  G <= DART_COLOR[3:2];
+                  B <= DART_COLOR[1:0];
+                end else if (temp_x > attack_width[9:1] && temp_y <= attack_height[9:1] && (temp_x - attack_width[9:1] + 2*(attack_height[9:1] - temp_y)) <= 30) begin
+                  R <= DART_COLOR[5:4];
+                  G <= DART_COLOR[3:2];
+                  B <= DART_COLOR[1:0];
+                end else if (temp_x > attack_width[9:1] && temp_y > attack_height[9:1] && (temp_x - attack_width[9:1] + 2*(temp_y - attack_height[9:1])) <= 30) begin
+                  R <= DART_COLOR[5:4];
+                  G <= DART_COLOR[3:2];
+                  B <= DART_COLOR[1:0];
+                end else begin
+                    R <= BACKGROUND_COLOR[5:4];
+                    G <= BACKGROUND_COLOR[3:2];
+                    B <= BACKGROUND_COLOR[1:0];
+                end
               end
             end else begin
               R <= BACKGROUND_COLOR[5:4];
@@ -841,10 +976,1313 @@ module tt_um_vga_example(
           end
         end else begin
           // Game over
-          play_sound <= 0;
-          R <= 0;
-          G <= 0;
-          B <= 0;
+          if (!game_result) begin
+            if (!game_over_tune_reset) begin
+              play_sound <= 0;
+              game_over_tune_reset <= 1;
+            end else begin
+              if (pix_x == 0 && pix_y == 0) begin
+                if (game_over_tune_frame_counter < FRAMES_PER_TUNE_NOTE) begin
+                  if (game_over_tune_note_counter == 0) begin
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[255:224];
+                  end
+
+                  game_over_tune_frame_counter <= game_over_tune_frame_counter + 1;
+                end else begin
+                  game_over_tune_frame_counter <= 0;
+                  if (game_over_tune_note_counter == 0) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[223:192];
+                  end else if (game_over_tune_note_counter == 1) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[191:160];
+                  end else if (game_over_tune_note_counter == 2) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[159:128];
+                  end else if (game_over_tune_note_counter == 3) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[127:96];
+                  end else if (game_over_tune_note_counter == 4) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[95:64];
+                  end else if (game_over_tune_note_counter == 5) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[63:32];
+                  end else if (game_over_tune_note_counter == 6) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_OVER_TUNE[31:0];
+                  end else begin
+                    game_over_tune_note_counter <= 8;
+                    play_sound <= 0;
+                  end
+                end
+              end
+            end
+          end else begin
+              if (!game_over_tune_reset) begin
+              play_sound <= 0;
+              game_over_tune_reset <= 1;
+            end else begin
+              if (pix_x == 0 && pix_y == 0) begin
+                if (game_over_tune_frame_counter < FRAMES_PER_TUNE_NOTE) begin
+                  if (game_over_tune_note_counter == 0) begin
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[255:224];
+                  end
+
+                  game_over_tune_frame_counter <= game_over_tune_frame_counter + 1;
+                end else begin
+                  game_over_tune_frame_counter <= 0;
+                  if (game_over_tune_note_counter == 0) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[223:192];
+                  end else if (game_over_tune_note_counter == 1) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[191:160];
+                  end else if (game_over_tune_note_counter == 2) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[159:128];
+                  end else if (game_over_tune_note_counter == 3) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[127:96];
+                  end else if (game_over_tune_note_counter == 4) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[95:64];
+                  end else if (game_over_tune_note_counter == 5) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[63:32];
+                  end else if (game_over_tune_note_counter == 6) begin
+                    game_over_tune_note_counter <= game_over_tune_note_counter + 1;
+                    play_sound <= 1;
+                    current_frequency <= GAME_WON_TUNE[31:0];
+                  end else begin
+                    game_over_tune_note_counter <= 8;
+                    play_sound <= 0;
+                  end
+                end
+              end
+            end
+          end
+
+          if (!game_result) begin
+            if (pix_x >= 100 && pix_x <= 110 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 120 && pix_x <= 130 && pix_y >= 80 && pix_y <= 90) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 80 && pix_y <= 90) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 140 && pix_x <= 150 && pix_y >= 80 && pix_y <= 90) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 80 && pix_y <= 90) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 160 && pix_x <= 170 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 170 && pix_x <= 180 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 90 && pix_x <= 100 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 90 && pix_x <= 100 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 90 && pix_x <= 100 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 90 && pix_x <= 100 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 100 && pix_x <= 110 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 120 && pix_x <= 130 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 140 && pix_x <= 150 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 140 && pix_x <= 150 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 230 && pix_x <= 240 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 220 && pix_x <= 230 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 200 && pix_x <= 210 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 200 && pix_x <= 210 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 220 && pix_x <= 230 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 230 && pix_x <= 240 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 350 && pix_x <= 360 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 360 && pix_x <= 370 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 370 && pix_x <= 380 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 410 && pix_x <= 420 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 410 && pix_x <= 420 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 410 && pix_x <= 420 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 390 && pix_x <= 400 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 450 && pix_x <= 460 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 450 && pix_x <= 460 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 470 && pix_x <= 480 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 490 && pix_x <= 500 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 500 && pix_x <= 510 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 90 && pix_y <= 100) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 470 && pix_x <= 480 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 490 && pix_x <= 500 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 500 && pix_x <= 510 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 470 && pix_x <= 480 && pix_y >= 125 && pix_y <= 135) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 125 && pix_y <= 135) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 490 && pix_x <= 500 && pix_y >= 125 && pix_y <= 135) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 140 && pix_x <= 150 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 160 && pix_x <= 170 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 170 && pix_x <= 180 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 180 && pix_x <= 190 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 200 && pix_x <= 210 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 200 && pix_x <= 210 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 180 && pix_x <= 190 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 170 && pix_x <= 180 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 160 && pix_x <= 170 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 140 && pix_x <= 150 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 120 && pix_x <= 130 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 120 && pix_x <= 130 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 290 && pix_x <= 300 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 290 && pix_x <= 300 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 300 && pix_x <= 310 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 350 && pix_x <= 360 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 350 && pix_x <= 360 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 310 && pix_x <= 320 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 310 && pix_x <= 320 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 390 && pix_x <= 400 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 390 && pix_x <= 400 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 410 && pix_x <= 420 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 440 && pix_x <= 450 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 450 && pix_x <= 460 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 410 && pix_x <= 420 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 440 && pix_x <= 450 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 450 && pix_x <= 460 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 410 && pix_x <= 420 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 440 && pix_x <= 450 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 500 && pix_x <= 510 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 510 && pix_x <= 520 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 500 && pix_x <= 510 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 520 && pix_x <= 530 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 530 && pix_x <= 540 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 540 && pix_x <= 550 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 550 && pix_x <= 560 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 560 && pix_x <= 570 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 560 && pix_x <= 570 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 550 && pix_x <= 560 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 540 && pix_x <= 550 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 530 && pix_x <= 540 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 520 && pix_x <= 530 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 550 && pix_x <= 560 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 550 && pix_x <= 560 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 550 && pix_x <= 560 && pix_y >= 310 && pix_y <= 320) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 560 && pix_x <= 570 && pix_y >= 320 && pix_y <= 330) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else begin
+              R <= 1;
+              G <= 1;
+              B <= 1;
+            end
+          end else begin
+            if (pix_x >= 100 && pix_x <= 110 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 100 && pix_x <= 110 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 110 && pix_x <= 120 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 120 && pix_x <= 130 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 140 && pix_x <= 150 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 150 && pix_x <= 160 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 160 && pix_x <= 170 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 160 && pix_x <= 170 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 170 && pix_y <= 180) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 130 && pix_x <= 140 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 200 && pix_x <= 210 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 170 && pix_y <= 180) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 190 && pix_x <= 200 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 200 && pix_x <= 210 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 220 && pix_x <= 230 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 230 && pix_x <= 240 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 170 && pix_y <= 180) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 230 && pix_x <= 240 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 220 && pix_x <= 230 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 210 && pix_x <= 220 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 170 && pix_y <= 180) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 100 && pix_y <= 110) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 110 && pix_y <= 120) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 120 && pix_y <= 130) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 130 && pix_y <= 140) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 140 && pix_y <= 150) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 150 && pix_y <= 160) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 160 && pix_y <= 170) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 170 && pix_y <= 180) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 310 && pix_x <= 320 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 300 && pix_x <= 310 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 290 && pix_x <= 300 && pix_y >= 180 && pix_y <= 190) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 240 && pix_x <= 250 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 250 && pix_x <= 260 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 260 && pix_x <= 270 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 270 && pix_x <= 280 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 280 && pix_x <= 290 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 290 && pix_x <= 300 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 340 && pix_x <= 350 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 330 && pix_x <= 340 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 320 && pix_x <= 330 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 310 && pix_x <= 320 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 300 && pix_x <= 310 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 300 && pix_x <= 310 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 360 && pix_x <= 370 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 370 && pix_x <= 380 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 390 && pix_x <= 400 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 360 && pix_x <= 370 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 370 && pix_x <= 380 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 390 && pix_x <= 400 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 400 && pix_x <= 410 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 380 && pix_x <= 390 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 430 && pix_x <= 440 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 420 && pix_x <= 430 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 440 && pix_x <= 450 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 450 && pix_x <= 460 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 460 && pix_x <= 470 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 470 && pix_x <= 480 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 280 && pix_y <= 290) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 290 && pix_y <= 300) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 490 && pix_x <= 500 && pix_y >= 300 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 270 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 260 && pix_y <= 270) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 250 && pix_y <= 260) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 480 && pix_x <= 490 && pix_y >= 240 && pix_y <= 250) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 490 && pix_x <= 500 && pix_y >= 230 && pix_y <= 240) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 520 && pix_x <= 540 && pix_y >= 290 && pix_y <= 310) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else if (pix_x >= 520 && pix_x <= 540 && pix_y >= 230 && pix_y <= 280) begin
+              R <= 3;
+              G <= 3;
+              B <= 3;
+            end else begin
+              R <= 1;
+              G <= 1;
+              B <= 1;
+            end
+          end
         end
       end else begin
         // If pixel not on screen, display plain black
