@@ -129,6 +129,11 @@ module tt_um_vga_example(
 
   localparam [9:0] BEEP_LENGTH = 5;
 
+  localparam [9:0] FRAMES_PER_TUNE_NOTE = 10'd15; // 15 frames for every note in the tune
+
+  localparam [255:0] GAME_OVER_TUNE = {32'd50000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000};
+  // localparam [255:0] GAME_OVER_TUNE = {HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY};
+
   // Player values
   reg [9:0] player_x = STARTING_X;
   reg [9:0] player_y = STARTING_Y;
@@ -189,8 +194,67 @@ module tt_um_vga_example(
         sound_counter <= sound_counter + 1;
       end
     end else begin
-      sound <= 0;
+      // sound <= 0;
       sound_counter <= 0;
+    end
+  end
+
+  
+  reg [31:0] tune_counter = 0;
+  reg [9:0] tune_frame_counter = 0;
+  reg [255:0] current_tune = GAME_OVER_TUNE;
+  reg [4:0] current_note = 0;
+  reg play_tune = 0;
+
+  reg [31:0] current_note_frequency = 0;
+
+  always @(posedge clk) begin
+    if (play_tune) begin
+      // WHY NOT WORKING?
+      // current_note_frequency <= current_tune[255:224];
+      // if (current_note == 0) begin
+      //   current_note_frequency <= current_tune[255:224];
+      // end else if (current_note == 1) begin
+      //   current_note_frequency <= current_tune[223:192];
+      // end else if (current_note == 2) begin
+      //   current_note_frequency <= current_tune[191:160];
+      // end else if (current_note == 3) begin
+      //   current_note_frequency <= current_tune[159:128];
+      // end else if (current_note == 4) begin
+      //   current_note_frequency <= current_tune[127:96];
+      // end else if (current_note == 5) begin
+      //   current_note_frequency <= current_tune[95:64];
+      // end else if (current_note == 6) begin
+      //   current_note_frequency <= current_tune[63:32];
+      // end else if (current_note == 7) begin
+      //   current_note_frequency <= current_tune[31:0];
+      // end else begin
+      //   current_note_frequency <= 0;
+      // end
+
+      if (pix_x == 0 && pix_y == 0) begin
+        if (tune_frame_counter >= FRAMES_PER_TUNE_NOTE) begin
+          if (current_note < 7) begin
+            current_note <= current_note + 1;
+          end else begin
+            play_tune <= 0;
+          end
+        end else begin
+          tune_frame_counter <= tune_frame_counter + 1;
+        end
+      end
+
+      if (tune_counter > current_note_frequency) begin
+        sound <= ~sound;
+        tune_counter <= 0;
+      end else begin
+        tune_counter <= tune_counter + 1;
+      end
+    end else begin
+      // sound <= 0;
+      tune_counter <= 0;
+      tune_frame_counter <= 0;
+      current_note <= 0;
     end
   end
 
@@ -224,6 +288,11 @@ module tt_um_vga_example(
       sound_counter <= 0;
       play_sound <= 0;
       current_frequency <= HIGH_BEEP_FREQUENCY;
+      tune_counter <= 0;
+      tune_frame_counter <= 0;
+      current_tune <= GAME_OVER_TUNE;
+      current_note <= 0;
+      play_tune <= 0;
       temp_x <= 0;
       temp_y <= 0;
     end else begin
@@ -249,6 +318,7 @@ module tt_um_vga_example(
             if (player_position == 2) begin
               if (attack_x + attack_width[9:1] > player_x - PLAYER_WIDTH[9:1] && attack_x - attack_width[9:1] < player_x + PLAYER_WIDTH[9:1] && player_y < attack_y - attack_height[9:1]) begin
                 game_over <= 1;
+                game_result <= 0;
                 beep_counter <= 0;
                 beep_playing <= 0;
                 play_sound <= 0;
@@ -256,6 +326,7 @@ module tt_um_vga_example(
             end else begin
               if (attack_x + attack_width[9:1] > player_x - PLAYER_WIDTH[9:1] && attack_x - attack_width[9:1] < player_x + PLAYER_WIDTH[9:1] && player_y + PLAYER_HEIGHT[9:1] > attack_y - attack_height[9:1]) begin
                 game_over <= 1;
+                game_result <= 0;
                 beep_counter <= 0;
                 beep_playing <= 0;
                 play_sound <= 0;
@@ -279,6 +350,14 @@ module tt_um_vga_example(
               scroll_speed_counter <= 0;
             end else begin
               scroll_speed_counter <= scroll_speed_counter + 1;
+            end
+            
+            if (scroll_speed_value >= MAX_SCROLL_SPEED) begin
+              game_over <= 1;
+              game_result <= 1;
+              beep_counter <= 0;
+              beep_playing <= 0;
+              play_sound <= 0;
             end
 
             if (player_position == 0 && cooldown_counter < COOLDOWN_FRAMES) begin
@@ -762,6 +841,7 @@ module tt_um_vga_example(
           end
         end else begin
           // Game over
+          play_sound <= 0;
           R <= 0;
           G <= 0;
           B <= 0;
