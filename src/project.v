@@ -131,11 +131,9 @@ module tt_um_vga_example(
 
   localparam [9:0] FRAMES_PER_TUNE_NOTE = 10'd5; // 15 frames for every note in the tune
 
-  // localparam [255:0] GAME_OVER_TUNE = {32'd500000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000, 32'd50000, 32'd500000};
   localparam [255:0] GAME_OVER_TUNE = {{2{32'd30000, 32'd20000, 32'd15000}}, {2{32'd40000}}};
   localparam [255:0] GAME_WON_TUNE = {{2{32'd30000, 32'd20000, 32'd15000}}, {2{32'd10000}}};
-  // localparam [255:0] GAME_OVER_TUNE = {HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY, HIGH_BEEP_FREQUENCY, LOW_BEEP_FREQUENCY};
-
+  
   // Player values
   reg [9:0] player_x = STARTING_X;
   reg [9:0] player_y = STARTING_Y;
@@ -205,170 +203,6 @@ module tt_um_vga_example(
     end
   end
 
-  
-  // reg [31:0] tune_counter = 0;
-  // reg [9:0] tune_frame_counter = 0;
-  // reg [255:0] current_tune = GAME_OVER_TUNE;
-  // reg [4:0] current_note = 0;
-  // reg play_tune = 0;
-
-  // reg [31:0] current_note_frequency = 0;
-  // // wire [31:0] current_note_frequency = 0;
-
-  // // wire [255:0] current_tune_wire;
-
-  // // assign current_tune_wire = current_tune;
-
-  // // always @* begin
-  // //   if (current_note == 0) begin
-  // //     current_note_frequency = current_tune[255:224];
-  // //   end else if (current_note == 1) begin
-  // //     current_note_frequency = current_tune[223:192];
-  // //   end else if (current_note == 2) begin
-  // //     current_note_frequency = current_tune[191:160];
-  // //   end else if (current_note == 3) begin
-  // //     current_note_frequency = current_tune[159:128];
-  // //   end else if (current_note == 4) begin
-  // //     current_note_frequency = current_tune[127:96];
-  // //   end else if (current_note == 5) begin
-  // //     current_note_frequency = current_tune[95:64];
-  // //   end else if (current_note == 6) begin
-  // //     current_note_frequency = current_tune[63:32];
-  // //   end else if (current_note == 7) begin
-  // //     current_note_frequency = current_tune[31:0];
-  // //   end else begin
-  // //     current_note_frequency = 0;
-  // //   end
-  // // end
-
-  // always @(posedge clk) begin
-  //   // current_note_frequency <= current_tune_wire[31:0];
-  //   // current_note_frequency <= current_tune[31:0];
-  //   // if (current_note == 0) begin
-  //   //   // current_note_frequency <= GAME_OVER_TUNE[255:224];
-  //   //   current_note_frequency <= current_tune[255:224];
-  //   // end else if (current_note == 1) begin
-  //   //   current_note_frequency <= current_tune[223:192];
-  //   // end else if (current_note == 2) begin
-  //   //   current_note_frequency <= current_tune[191:160];
-  //   // end else if (current_note == 3) begin
-  //   //   current_note_frequency <= current_tune[159:128];
-  //   // end else if (current_note == 4) begin
-  //   //   current_note_frequency <= current_tune[127:96];
-  //   // end else if (current_note == 5) begin
-  //   //   current_note_frequency <= current_tune[95:64];
-  //   // end else if (current_note == 6) begin
-  //   //   current_note_frequency <= current_tune[63:32];
-  //   // end else if (current_note == 7) begin
-  //   //   current_note_frequency <= current_tune[31:0];
-  //   // end else begin
-  //   //   current_note_frequency <= 0;
-  //   // end
-
-  //   if (play_tune) begin
-  //     // WHY NOT WORKING?
-  //     // current_note_frequency <= current_tune[31:0];
-  //     // current_tune <= GAME_OVER_TUNE;
-  //     if (current_note == 0) begin
-  //       current_note_frequency <= current_tune[255:224];
-  //     end else if (current_note == 1) begin
-  //       current_note_frequency <= current_tune[223:192];
-  //     end else if (current_note == 2) begin
-  //       current_note_frequency <= current_tune[191:160];
-  //     end else if (current_note == 3) begin
-  //       current_note_frequency <= current_tune[159:128];
-  //     end else if (current_note == 4) begin
-  //       current_note_frequency <= current_tune[127:96];
-  //     end else if (current_note == 5) begin
-  //       current_note_frequency <= current_tune[95:64];
-  //     end else if (current_note == 6) begin
-  //       current_note_frequency <= current_tune[63:32];
-  //     end else if (current_note == 7) begin
-  //       current_note_frequency <= current_tune[31:0];
-  //     end else begin
-  //       current_note_frequency <= 0;
-  //     end
-
-  //     if (pix_x == 0 && pix_y == 0) begin
-  //       if (tune_frame_counter >= FRAMES_PER_TUNE_NOTE) begin
-  //         if (current_note < 7) begin
-  //           current_note <= current_note + 1;
-  //         end else begin
-  //           play_tune <= 0;
-  //         end
-  //       end else begin
-  //         tune_frame_counter <= tune_frame_counter + 1;
-  //       end
-  //     end
-
-  //     // if (tune_counter > current_note_frequency) begin
-  //     if (tune_counter > current_note) begin
-  //       sound <= ~sound;
-  //       tune_counter <= 0;
-  //     end else begin
-  //       tune_counter <= tune_counter + 1;
-  //     end
-
-  //     // if (current_note == 0) begin
-  //     //   if (tune_counter > current_tune[255:224]) begin
-  //     //     sound <= ~sound;
-  //     //     tune_counter <= 0;
-  //     //   end else begin
-  //     //     tune_counter <= tune_counter + 1;
-  //     //   end
-  //     //   // current_note_frequency <= GAME_OVER_TUNE[255:224];
-  //     //   // current_note_frequency <= current_tune[255:224];
-  //     // end else if (current_note == 1) begin
-  //     //   // current_note_frequency <= current_tune[223:192];
-  //     // end else if (current_note == 2) begin
-  //     //   // current_note_frequency <= current_tune[191:160];
-  //     // end else if (current_note == 3) begin
-  //     //   // current_note_frequency <= current_tune[159:128];
-  //     // end else if (current_note == 4) begin
-  //     //   // current_note_frequency <= current_tune[127:96];
-  //     // end else if (current_note == 5) begin
-  //     //   // current_note_frequency <= current_tune[95:64];
-  //     // end else if (current_note == 6) begin
-  //     //   // current_note_frequency <= current_tune[63:32];
-  //     // end else if (current_note == 7) begin
-  //     //   // current_note_frequency <= current_tune[31:0];
-  //     // end else begin
-  //     //   // current_note_frequency <= 0;
-  //     // end
-
-  //     // if (current_note == 0 && tune_counter > current_tune[255:224]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else if (current_note == 1 && tune_counter > current_tune[223:192]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else if (current_note == 2 && tune_counter > current_tune[191:160]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else if (current_note == 3 && tune_counter > current_tune[159:128]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else if (current_note == 4 && tune_counter > current_tune[127:96]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else if (current_note == 5 && tune_counter > current_tune[63:32]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else if (current_note == 6 && tune_counter > current_tune[31:0]) begin
-  //     //   sound <= ~sound;
-  //     //   tune_counter <= 0;
-  //     // end else begin
-  //     //   tune_counter <= tune_counter + 1;
-  //     // end
-  //   end else begin
-  //     // sound <= 0;
-  //     tune_counter <= 0;
-  //     tune_frame_counter <= 0;
-  //     current_note <= 0;
-  //     current_note_frequency <= 0;
-  //   end
-  // end
-
   // Temp values
   reg [9:0] temp_x = 0;
   reg [9:0] temp_y = 0;
@@ -394,19 +228,11 @@ module tt_um_vga_example(
       cooldown_counter <= 0;
       beep_playing <= 0;
       beep_counter <= 0;
-      // game_over <= 1;
-      // game_result <= 1;
       game_over <= 0;
       game_result <= 0;
       sound_counter <= 0;
       play_sound <= 0;
       current_frequency <= HIGH_BEEP_FREQUENCY;
-      // current_note_frequency <= 0;
-      // tune_counter <= 0;
-      // tune_frame_counter <= 0;
-      // current_tune <= GAME_OVER_TUNE;
-      // current_note <= 0;
-      // play_tune <= 0;
       game_over_tune_frame_counter <= 0;
       game_over_tune_note_counter <= 0;
       game_over_tune_reset <= 0;
@@ -417,11 +243,14 @@ module tt_um_vga_example(
         // If pixel is visible, run game code
         
         if (!game_over) begin
+          // If game is not over, run game logic
+
           // Run once a frame
           if (pix_x == 0 && pix_y == 0) begin
+            // Count frames for player animation
             player_keyframe <= player_keyframe + 1;
-            // player_keyframe <= 3;
 
+            // Keep track of beeps and end if necessary
             if (beep_playing && beep_counter < BEEP_LENGTH) begin
               beep_counter <= beep_counter + 1;
             end else if (beep_playing) begin
@@ -429,9 +258,11 @@ module tt_um_vga_example(
               beep_playing <= 0;
               play_sound <= 0;
             end
-
+            
+            // Move attacks towards players
             attack_x <= attack_x - scroll_speed_value;
 
+            // End game if player hits attack
             if (player_position == 2) begin
               if (attack_x + attack_width[9:1] > player_x - PLAYER_WIDTH[9:1] && attack_x - attack_width[9:1] < player_x + PLAYER_WIDTH[9:1] && player_y < attack_y - attack_height[9:1]) begin
                 game_over <= 1;
@@ -450,6 +281,7 @@ module tt_um_vga_example(
               end
             end
 
+            // If attack reaches end of screen, respawn on other side with randomly chosen attack
             if (attack_x <= 20) begin
               attack_type <= lfsr[0];
               
@@ -462,6 +294,7 @@ module tt_um_vga_example(
               end
             end
             
+            // Increase the speed of attack if necessary
             if (scroll_speed_counter >= SCROLL_SPEED_INCREMENT_FRAMES) begin
               scroll_speed_value <= scroll_speed_value + 1;
               scroll_speed_counter <= 0;
@@ -469,6 +302,7 @@ module tt_um_vga_example(
               scroll_speed_counter <= scroll_speed_counter + 1;
             end
             
+            // If player reaches max speed, end game and let user know they won
             if (scroll_speed_value >= MAX_SCROLL_SPEED) begin
               game_over <= 1;
               game_result <= 1;
@@ -477,13 +311,14 @@ module tt_um_vga_example(
               play_sound <= 0;
             end
 
+            // Add a cooldown between jumps/crouches
             if (player_position == 0 && cooldown_counter < COOLDOWN_FRAMES) begin
               cooldown_counter <= cooldown_counter + 1;
             end
 
+            // If user presses "up" key, make player jump
             if (inp_up && player_position == 0 && cooldown_counter >= COOLDOWN_FRAMES) begin
               player_y_speed <= -$signed(JUMP_SPEED);
-              // player_y_speed <= -10'sd1;
               player_position <= 1;
               player_keyframe <= 0;
               cooldown_counter <= 0;
@@ -492,7 +327,8 @@ module tt_um_vga_example(
               play_sound <= 1;
               current_frequency <= JUMP_BEEP_FREQUENCY;
             end
-
+            
+            // If user presses "down", make player crouch
             if (inp_down && player_position == 0 && cooldown_counter >= COOLDOWN_FRAMES) begin
               player_position <= 2;
               player_keyframe <= 0;
@@ -503,23 +339,15 @@ module tt_um_vga_example(
               current_frequency <= CROUCH_BEEP_FREQUENCY;
             end
 
-            // {player_y_speed, player_y} <= {{player_y_speed + player_y_acceleration}, {player_y + player_y_speed}};
-
-            // player_y_speed <= player_y_speed + player_y_acceleration;
-            // player_y <= player_y + player_y_speed;
-            // player_y_speed <= player_y_speed;
-
+            // Update player's vertical speed if necessary
             player_y <= player_y + player_y_speed;
-            // player_y <= 100 + player_y_speed + player_y_acceleration;
-            // player_y_speed <= player_y_speed + player_y_acceleration;
 
+            // If player is jumping, use gravit
             if (player_position == 1) begin
               player_y_speed <= player_y_speed + player_y_acceleration;
             end
-            // player_y_speed <= player_next_speed_clone;
-            // player_y_speed <= player_next_speed_clone;
-            // player_y <= player_y_acceleration+50;
 
+            // If player hits ground, reset them to normal run
             if ((player_y + PLAYER_HEIGHT[9:1]) > GROUND_Y) begin
               player_y <= GROUND_Y - PLAYER_HEIGHT[9:1];
               player_y_speed <= 0;
@@ -527,6 +355,7 @@ module tt_um_vga_example(
               player_keyframe <= 0;
             end
 
+            // Update animation
             if (player_position == 0 && player_keyframe >= 10) begin
               player_keyframe <= 0;
             end else if (player_position == 2 && player_keyframe >= 20) begin
@@ -547,11 +376,17 @@ module tt_um_vga_example(
             G <= GROUND_COLOR[3:2];
             B <= GROUND_COLOR[1:0];
           end else begin
+            // If pixel is above ground, display color as appropriate
+
             if (pix_x >= (player_x - PLAYER_WIDTH[9:1]) && pix_x <= (player_x + PLAYER_WIDTH[9:1]) && pix_y >= (player_y - PLAYER_HEIGHT[9:1]) && pix_y <= (player_y + PLAYER_HEIGHT[9:1])) begin
+              // If pixel is within player's hitbox, display player or sky as necessary
+              
+              // Temporary values to determine pixel position relative to top-left corner of hitbox
               temp_x <= pix_x - player_x + PLAYER_WIDTH[9:1];
               temp_y <= pix_y - player_y + PLAYER_HEIGHT[9:1];
 
               if (player_position == 0) begin
+                // If player is running, display running keyframes
                 if (player_keyframe < 5) begin
                   if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
                     R <= PLAYER_BRIGHT_COLOR[5:4];
@@ -578,9 +413,6 @@ module tt_um_vga_example(
                     G <= PLAYER_BRIGHT_COLOR[3:2];
                     B <= PLAYER_BRIGHT_COLOR[1:0];
                   end else begin
-                    // R <= 3;
-                    // G <= 0;
-                    // B <= 0;
                     R <= BACKGROUND_COLOR[5:4];
                     G <= BACKGROUND_COLOR[3:2];
                     B <= BACKGROUND_COLOR[1:0];
@@ -610,24 +442,14 @@ module tt_um_vga_example(
                     R <= PLAYER_BRIGHT_COLOR[5:4];
                     G <= PLAYER_BRIGHT_COLOR[3:2];
                     B <= PLAYER_BRIGHT_COLOR[1:0];
-                  // end else if (temp_x >= 15 && temp_x <= 25 && temp_y > 60 && temp_y < 90) begin
-                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                  // end else if (temp_x >= 5 && temp_x <= 15 && temp_y > 75 && temp_y < 90) begin
-                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
                   end else begin
-                    // R <= 3;
-                    // G <= 0;
-                    // B <= 0;
                     R <= BACKGROUND_COLOR[5:4];
                     G <= BACKGROUND_COLOR[3:2];
                     B <= BACKGROUND_COLOR[1:0];
                   end
                 end
               end else if (player_position == 1) begin
+                // If player is jumping, display jumping keyframe
                 if (temp_x >= 10 && temp_x <= 40 && temp_y <= 30) begin
                     R <= PLAYER_BRIGHT_COLOR[5:4];
                     G <= PLAYER_BRIGHT_COLOR[3:2];
@@ -648,23 +470,13 @@ module tt_um_vga_example(
                     R <= PLAYER_BRIGHT_COLOR[5:4];
                     G <= PLAYER_BRIGHT_COLOR[3:2];
                     B <= PLAYER_BRIGHT_COLOR[1:0];
-                  // end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
-                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                  // end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
-                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
                   end else begin
-                    // R <= 3;
-                    // G <= 0;
-                    // B <= 0;
                     R <= BACKGROUND_COLOR[5:4];
                     G <= BACKGROUND_COLOR[3:2];
                     B <= BACKGROUND_COLOR[1:0];
                   end
               end else if (player_position == 2) begin
+                // If player is crouching, display crouching keyframe
                 if (temp_x >= 10 && temp_x <= 40 && temp_y >= 40 && temp_y <= 60) begin
                     R <= PLAYER_BRIGHT_COLOR[5:4];
                     G <= PLAYER_BRIGHT_COLOR[3:2];
@@ -685,28 +497,19 @@ module tt_um_vga_example(
                     R <= PLAYER_BRIGHT_COLOR[5:4];
                     G <= PLAYER_BRIGHT_COLOR[3:2];
                     B <= PLAYER_BRIGHT_COLOR[1:0];
-                  // end else if (temp_x >= 10 && temp_x <= 20 && temp_y > 60 && temp_y < 90) begin
-                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
-                  // end else if (temp_x >= 0 && temp_x <= 10 && temp_y > 75 && temp_y < 90) begin
-                  //   R <= PLAYER_BRIGHT_COLOR[5:4];
-                  //   G <= PLAYER_BRIGHT_COLOR[3:2];
-                  //   B <= PLAYER_BRIGHT_COLOR[1:0];
                   end else begin
-                    // R <= 3;
-                    // G <= 0;
-                    // B <= 0;
                     R <= BACKGROUND_COLOR[5:4];
                     G <= BACKGROUND_COLOR[3:2];
                     B <= BACKGROUND_COLOR[1:0];
                   end
               end else begin
+                // If not a correct position, display player-colored block
                 R <= PLAYER_BRIGHT_COLOR[5:4];
                 G <= PLAYER_BRIGHT_COLOR[3:2];
                 B <= PLAYER_BRIGHT_COLOR[1:0];
               end
             end else if (pix_x > (DISPLAY_WIDTH - 150) && pix_y < 150) begin
+              // If top-right corner, display sun
               if ((DISPLAY_WIDTH - pix_x) + pix_y < 100) begin
                 R <= SUN_COLOR[5:4];
                 G <= SUN_COLOR[3:2];
@@ -759,16 +562,13 @@ module tt_um_vga_example(
                 R <= SUN_COLOR[5:4];
                 G <= SUN_COLOR[3:2];
                 B <= SUN_COLOR[1:0];
-              // end else if ((pix_x >= DISPLAY_WIDTH - 140 && pix_x <= DISPLAY_WIDTH - 130 && pix_y <= 40 && pix_y >= 30)) begin
-              //   R <= SUN_COLOR[5:4];
-              //   G <= SUN_COLOR[3:2];
-              //   B <= SUN_COLOR[1:0];
               end else begin
                 R <= BACKGROUND_COLOR[5:4];
                 G <= BACKGROUND_COLOR[3:2];
                 B <= BACKGROUND_COLOR[1:0];
               end
             end else if (pix_y < 200) begin
+              // If sky, display sky-color or breeze-color as necessary
               if ((pix_x >= 50 && pix_x <= 60 && pix_y >= 50 && pix_y <= 60)) begin
                 R <= BREEZE_COLOR[5:4];
                 G <= BREEZE_COLOR[3:2];
@@ -845,7 +645,6 @@ module tt_um_vga_example(
                 R <= BREEZE_COLOR[5:4];
                 G <= BREEZE_COLOR[3:2];
                 B <= BREEZE_COLOR[1:0];
-              //
               end else if ((pix_x >= 150 && pix_x <= 160 && pix_y >= 150 && pix_y <= 160)) begin
                 R <= BREEZE_COLOR[5:4];
                 G <= BREEZE_COLOR[3:2];
@@ -928,10 +727,14 @@ module tt_um_vga_example(
                 B <= BACKGROUND_COLOR[1:0];
               end
             end else if (pix_x >= (attack_x - attack_width[9:1]) && pix_x <= (attack_x + attack_width[9:1]) && pix_y >= (attack_y - attack_height[9:1]) && pix_y <= (attack_y + attack_height[9:1])) begin
+              // If in attack's hitbox, display attack or sky as necessary
+
+              // Temporary values to determine pixel position relative to top-left corner of hitbox
               temp_x <= pix_x - attack_x + attack_width[9:1];
               temp_y <= pix_y - attack_y + attack_height[9:1];
 
               if (attack_type == 0) begin
+                // If attack is a spike, display spike
                 if (temp_x < attack_width[9:1] && (attack_width[9:1] - temp_x + attack_height - temp_y) <= 30) begin
                   R <= SPIKE_COLOR[5:4];
                   G <= SPIKE_COLOR[3:2];
@@ -946,6 +749,7 @@ module tt_um_vga_example(
                   B <= BACKGROUND_COLOR[1:0];
                 end
               end else begin
+                // If attack is a dart, display dart
                 if (temp_x <= attack_width[9:1] && temp_y <= attack_height[9:1] && (attack_width[9:1] - temp_x + 2*(attack_height[9:1] - temp_y)) <= 30) begin
                   R <= DART_COLOR[5:4];
                   G <= DART_COLOR[3:2];
@@ -969,14 +773,16 @@ module tt_um_vga_example(
                 end
               end
             end else begin
+              // If not any object or decoration, display sky
               R <= BACKGROUND_COLOR[5:4];
               G <= BACKGROUND_COLOR[3:2];
               B <= BACKGROUND_COLOR[1:0];
             end
           end
         end else begin
-          // Game over
+          // If game over, display appropriate screen and play correct music
           if (!game_result) begin
+            // If player lost, play game over music
             if (!game_over_tune_reset) begin
               play_sound <= 0;
               game_over_tune_reset <= 1;
@@ -1027,7 +833,8 @@ module tt_um_vga_example(
               end
             end
           end else begin
-              if (!game_over_tune_reset) begin
+            // If player won, play you won music
+            if (!game_over_tune_reset) begin
               play_sound <= 0;
               game_over_tune_reset <= 1;
             end else begin
@@ -1079,6 +886,7 @@ module tt_um_vga_example(
           end
 
           if (!game_result) begin
+            // If player lost, display game over message
             if (pix_x >= 100 && pix_x <= 110 && pix_y >= 100 && pix_y <= 110) begin
               R <= 3;
               G <= 3;
@@ -1813,6 +1621,7 @@ module tt_um_vga_example(
               B <= 1;
             end
           end else begin
+            // If player won, display you won message
             if (pix_x >= 100 && pix_x <= 110 && pix_y >= 100 && pix_y <= 110) begin
               R <= 3;
               G <= 3;

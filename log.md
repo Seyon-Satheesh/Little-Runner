@@ -87,7 +87,7 @@ Hour 13-16
 
 Date: 09/14/2025 (mm/dd/yyyy)
 
-Time range: 2:30 AM - 6:30 AM
+Time range: 2:30 PM - 6:30 PM
 
 Description: I spent this last session refining the game as much as I possibly could. This began by first fixing the issue of the musical tune bricking the entire program. I attempted multiple changes, read a variety of articles on register assignment, swapped between blocking/non-blocking/both assignment and even tried using placeholder/temporary copy wires. None of these worked. After over an hour of dealing with this issue, I figured the easiest solution would be to complete an entire rewrite of the music logic and make it use the pre-existing note player rather than its own separate audio loop. While at first this felt like a big step backward by throwing all the pre-existing code and trials away, it vastly sped up the completion of this feature as this actually worked as intended quickly. Once I had completed this (and the associated work of picking notes for the end game music), I moved on to improving the end screens. I made them white text on a grey background for simplicity and aesthetic purposes. However, all the text on these screens needed to be hand-written manually in code which took close to 2 hours of work. This tedious process of adding white-pixel blocks one-by-one until their positions looked and felt right was extremely time-consuming but well-worth the cost as it improves the experience for the players of the game. Once I had completed that, I finished up by giving the dart attacks custom pixel artwork as well to complete the game's cohesive visual identity. Screenshots of the completed game could be found below.
 
@@ -96,3 +96,12 @@ Description: I spent this last session refining the game as much as I possibly c
 ![Image of You Won! Screen](./images/Hour13-16/3.png)
 
 My next steps would be to clean-up the codebase, add descriptive comments, write a README and, if time is available, make the player multi-color to improve the aesthetics of the game.
+
+
+Hour 17
+
+Date: 09/14/2025 (mm/dd/yyyy)
+
+Time range: 7:15 PM - 8:15 PM
+
+Description: I began this past hour by cleaning up the codebase and adding descriptive comments throughout to ensure readability and improve the life of anyone who decides to continue this project in the future. I then wrote the README, took a screen recording (had to download OBS because MacOS can't record audio by default) and took screenshots. This was all culminated in a easy to read introduction to the project for anyone trying to understand what is going on. My next steps are to submit this project using the Bitstream form and, if time permits, make a multi-color player in the future.
