@@ -11,7 +11,7 @@ Little Runner is a hardware-based FPGA game designed for the Bitstream Hack Club
 
 ## Video Demo
 
-![Video Demonstration of Game](./videos/LittleRunnerDemo.mp4.)
+![Video Demonstration of Game](./videos/LittleRunnerDemo.mp4)
 
 
 ## Next Steps
